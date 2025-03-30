@@ -14,35 +14,39 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [currentNodeId, setCurrentNodeId] = useState<number | null>(null);
   const [neighbors, setNeighbors] = useState<{neighborId: number, cost: number}[]>([]);
   const [showNeighborTable, setShowNeighborTable] = useState(false);
+  const [currentNodeIndex, setCurrentNodeIndex] = useState<number>(0);
 
   const handleSendHelloPackets = async () => {
     if (isAnimating) return;
-    setIsAnimating(true);
-    setMessage('Starting hello packet animation...');
 
-    // Get all node IDs
-    const nodeIds = Array.from(network.nodes.keys()).sort((a, b) => a - b);
-    
-    // Process each node one by one
+    // Get all active node IDs
+    const nodeIds = Array.from(network.nodes.keys())
+      .filter(id => network.getNode(id)?.active)
+      .sort((a, b) => a - b);
+
+    if (nodeIds.length === 0) {
+      setMessage('No active nodes in the network');
+      return;
+    }
+
+    setIsAnimating(true);
+    setCurrentNodeIndex(0);
+
+    // Process each node
     for (let i = 0; i < nodeIds.length; i++) {
       const nodeId = nodeIds[i];
-      const node = network.getNode(nodeId);
-      
-      if (!node || !node.active) continue;
-      
-      // Set current node and highlight it
       setCurrentNodeId(nodeId);
-      setMessage(`Node ${nodeId} is sending hello packets to its neighbors...`);
-      
+      setMessage(`Starting hello packet animation for Node ${nodeId}...`);
+
       // Wait a moment before sending packets
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Send hello packets for this node
+      // Send hello packets for the current node
       const packets = network.simulateNodeHelloPackets(nodeId);
+      simulation.sendHelloPackets(nodeId);
       
       // Wait for the packets to reach their destinations
-      // This needs to be long enough for the animation to complete
-      const animationTime = 3000; // 3 seconds for packet travel animation
+      const animationTime = 1000; // 1 second for packet travel animation
       await new Promise(resolve => setTimeout(resolve, animationTime));
       
       // Get and display node's neighbors
@@ -57,32 +61,20 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
       
       // Wait for user to see the neighbor table
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Hide the neighbor table before moving to the next node
       setShowNeighborTable(false);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setCurrentNodeIndex(i + 1);
     }
     
-    // Final update after all nodes have sent hello packets
-    setMessage('All nodes have sent hello packets. Now updating routing tables...');
-    setCurrentNodeId(null);
-    
-    // Give time for the final message to be read
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Update all routing tables in the network
-    for (const node of network.nodes.values()) {
-      if (node.active) {
-        node.calculateRoutingTable();
-      }
-    }
-    
-    setMessage('All routing tables have been successfully updated!');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
+    // Final cleanup
+    setMessage('All nodes have completed sending hello packets');
+    await new Promise(resolve => setTimeout(resolve, 1000));
     setMessage('');
     setIsAnimating(false);
+    setCurrentNodeId(null);
+    setCurrentNodeIndex(0);
   };
 
   return (
@@ -90,22 +82,15 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       <h2>Simulation Controls</h2>
       
       {/* Hello packets button */}
-      <button 
-        className="hello-button"
-        onClick={handleSendHelloPackets}
-        disabled={isAnimating}
-      >
-        {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
-      </button>
-      
-      {/* Animation progress */}
-      {isAnimating && (
-        <div className="animation-progress">
-          <div className="progress-bar">
-            <div className="progress-fill"></div>
-          </div>
-        </div>
-      )}
+      <div className="input-group">
+        <button 
+          className="hello-button"
+          onClick={handleSendHelloPackets}
+          disabled={isAnimating}
+        >
+          {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
+        </button>
+      </div>
       
       {/* Animation message */}
       {message && (

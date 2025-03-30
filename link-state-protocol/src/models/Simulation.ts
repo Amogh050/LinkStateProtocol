@@ -24,16 +24,30 @@ export class Simulation {
     this.onStatusChange = onStatusChange;
   }
   
-  // Simplified to keep API compatibility - not used in new UI
   start(): void {
-    this.status.status = 'running';
-    this.onStatusChange({ ...this.status });
+    if (this.status.status !== 'running') {
+      this.status.status = 'running';
+      const intervalTime = 2000 / this.status.speed; // Adjust timing based on speed
+      
+      this.simulationInterval = setInterval(() => {
+        this.step();
+      }, intervalTime);
+      
+      this.onStatusChange({ ...this.status });
+    }
   }
   
-  // Simplified to keep API compatibility - not used in new UI
   pause(): void {
-    this.status.status = 'paused';
-    this.onStatusChange({ ...this.status });
+    if (this.status.status === 'running') {
+      this.status.status = 'paused';
+      
+      if (this.simulationInterval) {
+        clearInterval(this.simulationInterval);
+        this.simulationInterval = null;
+      }
+      
+      this.onStatusChange({ ...this.status });
+    }
   }
   
   reset(): void {
@@ -49,21 +63,36 @@ export class Simulation {
     this.onSimulationStep();
   }
   
-  // Simplified to keep API compatibility - not used in new UI
   setSpeed(speed: number): void {
     this.status.speed = speed;
-    this.onStatusChange({ ...this.status });
+    
+    if (this.status.status === 'running') {
+      // Restart with new speed
+      this.pause();
+      this.start();
+    } else {
+      this.onStatusChange({ ...this.status });
+    }
   }
   
-  // Step function now just notifies about updates
   step(): void {
     this.status.step++;
+    
+    if (this.status.step % 2 === 1) {
+      // Odd steps: Hello packets
+      this.network.simulateHelloPackets();
+    } else {
+      // Even steps: LSPs
+      this.network.simulateLSPs();
+    }
+    
     this.onSimulationStep();
   }
-  
-  // New function to handle hello packets specifically
-  sendHelloPackets(): void {
-    this.network.simulateHelloPackets();
+
+  // Modified function to handle hello packets for a specific node
+  sendHelloPackets(nodeId: number): void {
+    // Send hello packets for the specific node
+    this.network.simulateNodeHelloPackets(nodeId);
     this.status.step++;
     this.onSimulationStep();
   }
