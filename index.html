@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link-State Routing Protocol Visualization</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Link-State Routing</h1>
+            <div class="controls">
+                <h2>Controls</h2>
+                <div class="control-group">
+                    <button id="add-node">Add Node</button>
+                    <button id="add-link">Add Link</button>
+                    <button id="remove-node">Remove Node</button>
+                    <button id="remove-link">Remove Link</button>
+                </div>
+                <div class="control-group">
+                    <h3>Simulation</h3>
+                    <button id="start-simulation">Start</button>
+                    <button id="pause-simulation">Pause</button>
+                    <button id="reset-simulation">Reset</button>
+                    <div id="simulation-status">Status: Paused</div>
+                    <div class="slider-container">
+                        <label for="speed-slider">Speed:</label>
+                        <input type="range" id="speed-slider" min="1" max="10" value="5">
+                    </div>
+                </div>
+                <div class="routing-tables">
+                    <h3>Routing Tables</h3>
+                    <div id="routing-table-container"></div>
+                </div>
+            </div>
+        </div>
+        <div class="visualization">
+            <div id="canvas-container"></div>
+        </div>
+    </div>
+
+    <!-- Three.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Our application scripts -->
+    <script src="js/network.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/simulation.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        const statusElement = document.getElementById('simulation-status');
+        
+        // Initialize the application when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // The app.js will handle initialization
+        });
+    </script>
+</body>
+</html>
