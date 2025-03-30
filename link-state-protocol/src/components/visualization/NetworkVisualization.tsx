@@ -25,6 +25,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Clear any existing content
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild);
+    }
+
     // Create scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf0f0f0);
@@ -40,11 +45,21 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     camera.position.z = 15;
     cameraRef.current = camera;
 
-    // Create renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Create renderer with full size
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // Ensure renderer fills the container
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
 
     // Create controls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -60,21 +75,39 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
 
-    // Add grid helper
-    const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0xcccccc);
-    gridHelper.position.y = -2;
+    // Add a single plane to serve as a reference
+    const planeGeometry = new THREE.PlaneGeometry(30, 30);
+    const planeMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xf8f8f8, 
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = Math.PI / 2;
+    plane.position.y = -0.5;
+    scene.add(plane);
+
+    // Add subtle grid lines on the plane
+    const gridHelper = new THREE.GridHelper(30, 30, 0xaaaaaa, 0xdddddd);
+    gridHelper.position.y = -0.49; // Just above the plane
     scene.add(gridHelper);
 
     // Handle window resize
     const handleResize = () => {
       if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
       
-      cameraRef.current.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      
+      cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      rendererRef.current.setSize(width, height);
     };
 
     window.addEventListener('resize', handleResize);
+    // Initial resize
+    handleResize();
 
     // Animation loop
     const animate = () => {
@@ -138,22 +171,22 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     // Add node ID text as a simple canvas texture
     const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
+    canvas.width = 128; // Larger texture for better text quality
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 40px Arial';
+      ctx.font = 'bold 64px Arial'; // Larger font
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(node.id.toString(), 32, 32);
+      ctx.fillText(node.id.toString(), 64, 64);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.position.set(0, 0.7, 0);
-    sprite.scale.set(0.5, 0.5, 1);
+    sprite.scale.set(0.8, 0.8, 1); // Larger sprite
     mesh.add(sprite);
 
     sceneRef.current.add(mesh);
@@ -178,8 +211,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
-      color: 0x888888,
-      linewidth: 2
+      color: 0x555555, // Darker line color
+      linewidth: 3 // Thicker lines (note: may not work in all browsers)
     });
 
     const line = new THREE.Line(geometry, material);
@@ -190,22 +223,22 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     ).multiplyScalar(0.5);
 
     const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
+    canvas.width = 128; // Larger texture for better text quality
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = 'black';
-      ctx.font = 'bold 40px Arial';
+      ctx.font = 'bold 64px Arial'; // Larger font
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(cost.toString(), 32, 32);
+      ctx.fillText(cost.toString(), 64, 64);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
     const costSprite = new THREE.Sprite(spriteMaterial);
     costSprite.position.copy(midpoint);
-    costSprite.scale.set(0.5, 0.5, 1);
+    costSprite.scale.set(0.8, 0.8, 1); // Larger sprite
 
     sceneRef.current.add(line);
     sceneRef.current.add(costSprite);
@@ -228,11 +261,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     let geometry, material;
 
     if (packet.type === 'HELLO') {
-      geometry = new THREE.SphereGeometry(0.2, 16, 16);
-      material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+      geometry = new THREE.SphereGeometry(0.3, 16, 16); // Larger packets
+      material = new THREE.MeshPhongMaterial({ 
+        color: 0x00ff00,
+        emissive: 0x00aa00
+      });
     } else {
-      geometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-      material = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+      geometry = new THREE.BoxGeometry(0.35, 0.35, 0.35); // Larger packets
+      material = new THREE.MeshPhongMaterial({ 
+        color: 0xff0000,
+        emissive: 0xaa0000
+      });
     }
 
     const mesh = new THREE.Mesh(geometry, material);
@@ -355,8 +394,17 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   };
 
   return (
-    <div className="visualization-container" ref={containerRef} style={{ width: '100%', height: '500px' }} />
+    <div 
+      className="visualization-container" 
+      ref={containerRef} 
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative',
+        overflow: 'hidden'
+      }} 
+    />
   );
 };
 
-export default NetworkVisualization; 
+export default NetworkVisualization;
