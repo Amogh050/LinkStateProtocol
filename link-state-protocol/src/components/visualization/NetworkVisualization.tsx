@@ -300,23 +300,60 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     if (!fromNode || !toNode) return null;
 
     // Create packet geometry
-    let geometry, material;
+    let geometry, material, mesh;
 
     if (packet.type === 'HELLO') {
-      geometry = new THREE.SphereGeometry(0.3, 16, 16); // Larger packets
+      // Create a smaller sphere for HELLO packets
+      geometry = new THREE.SphereGeometry(0.2, 16, 16);
       material = new THREE.MeshPhongMaterial({ 
-        color: 0x00ff00,
-        emissive: 0x00aa00
+        color: 0x9c27b0, // Purple color to match button
+        emissive: 0x7b1fa2,
+        shininess: 50
       });
+      
+      mesh = new THREE.Mesh(geometry, material);
+      
+      // Add "HELLO" text as a label on the packet
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('HELLO', 32, 16);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMaterial = new THREE.SpriteMaterial({ 
+        map: texture,
+        transparent: true
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.position.set(0, 0.3, 0);
+      sprite.scale.set(0.5, 0.25, 1);
+      mesh.add(sprite);
+      
+      // Add a glowing effect
+      const glowGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xce93d8,
+        transparent: true,
+        opacity: 0.4
+      });
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      mesh.add(glowMesh);
     } else {
-      geometry = new THREE.BoxGeometry(0.35, 0.35, 0.35); // Larger packets
+      // Original LSP packet implementation
+      geometry = new THREE.BoxGeometry(0.35, 0.35, 0.35);
       material = new THREE.MeshPhongMaterial({ 
         color: 0xff0000,
         emissive: 0xaa0000
       });
+      mesh = new THREE.Mesh(geometry, material);
     }
-
-    const mesh = new THREE.Mesh(geometry, material);
 
     // Position at the source node
     mesh.position.copy(new THREE.Vector3(
@@ -338,7 +375,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
         toNode.position.z
       ),
       progress: 0,
-      speed: 0.02,
+      speed: 0.015, // Slower speed for better visualization
       packet: packet
     };
 
@@ -370,6 +407,19 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
           userData.toPos,
           userData.progress
         );
+        
+        // Add a small bouncing effect for HELLO packets
+        if (userData.packet.type === 'HELLO') {
+          // Add a sine wave to the y position for a bouncing effect
+          const bounceHeight = 0.1;
+          const bounceFrequency = 5;
+          const bounceOffset = Math.sin(userData.progress * Math.PI * bounceFrequency) * bounceHeight;
+          newPos.y += bounceOffset;
+          
+          // Rotate the packet as it moves
+          packetObject.rotation.y += 0.05;
+          packetObject.rotation.x += 0.03;
+        }
         
         packetObject.position.copy(newPos);
       }

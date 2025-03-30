@@ -90,6 +90,31 @@ export class Network {
     return allPackets;
   }
 
+  simulateNodeHelloPackets(nodeId: number): Packet[] {
+    const node = this.getNode(nodeId);
+    if (!node || !node.active) {
+      return [];
+    }
+    
+    const packets = node.sendHelloPackets(this);
+    this.packets = packets;
+    return packets;
+  }
+
+  getNodeNeighbors(nodeId: number): {neighborId: number, cost: number}[] {
+    const node = this.getNode(nodeId);
+    if (!node) {
+      return [];
+    }
+    
+    const neighbors: {neighborId: number, cost: number}[] = [];
+    node.links.forEach((cost, neighborId) => {
+      neighbors.push({ neighborId, cost });
+    });
+    
+    return neighbors;
+  }
+
   simulateLSPs(): Packet[] {
     const allPackets: Packet[] = [];
     

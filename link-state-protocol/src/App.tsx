@@ -89,7 +89,7 @@ function App() {
           
           <SimulationControls 
             simulation={simulationState.simulation} 
-            status={simulationState.status}
+            network={network}
           />
           
           <RoutingTables network={network} />

@@ -52,7 +52,10 @@ export class Node {
           type: 'HELLO',
           from: this.id,
           to: neighborId,
-          data: { senderId: this.id }
+          data: { 
+            senderId: this.id,
+            cost: cost  // Include the link cost in the packet
+          }
         });
       }
     }
