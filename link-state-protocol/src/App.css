@@ -88,6 +88,16 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Primary button styling */
+.primary-button {
+  background-color: #2ecc71;
+  font-weight: bold;
+}
+
+.primary-button:hover {
+  background-color: #27ae60;
+}
+
 input[type="text"] {
   padding: 0.6rem;
   border: 1px solid #ddd;
@@ -104,6 +114,35 @@ input[type="text"] {
 input[type="range"] {
   flex: 1;
   height: 8px; /* Thicker slider */
+}
+
+/* Messages */
+.message {
+  padding: 0.8rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  font-size: 1rem;
+  color: #333;
+  animation: fadeOut 3s forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Network status */
+.network-status {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
 }
 
 /* Headings */

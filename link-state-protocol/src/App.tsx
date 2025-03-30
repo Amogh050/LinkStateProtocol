@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { Network } from './models/Network';
 import { Simulation } from './models/Simulation';
@@ -9,6 +9,9 @@ import SimulationControls from './components/controls/SimulationControls';
 import RoutingTables from './components/routing/RoutingTables';
 
 function App() {
+  // Add a force update counter to trigger re-renders
+  const [updateCounter, setUpdateCounter] = useState(0);
+  
   const [network] = useState<Network>(() => {
     const newNetwork = new Network();
     newNetwork.createInitialTopology();
@@ -48,13 +51,19 @@ function App() {
     }));
   }
 
-  function handleNetworkUpdate() {
-    // Force component update when network changes
+  // Improved network update handler
+  const handleNetworkUpdate = useCallback(() => {
+    // Increment update counter to force re-render
+    setUpdateCounter(counter => counter + 1);
+    
+    // Update simulation state
     setSimulationState(prevState => ({
       ...prevState,
       packets: [...network.packets]
     }));
-  }
+    
+    console.log('Network updated, triggering re-render');
+  }, [network]);
 
   // Cleanup simulation on unmount
   useEffect(() => {
@@ -89,7 +98,8 @@ function App() {
         <div className="visualization-area">
           <NetworkVisualization 
             network={network} 
-            packets={simulationState.packets} 
+            packets={simulationState.packets}
+            key={`network-vis-${updateCounter}`} 
           />
         </div>
       </div>

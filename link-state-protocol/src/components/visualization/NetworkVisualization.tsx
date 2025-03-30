@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Network } from '../../models/Network';
@@ -7,6 +7,7 @@ import { Packet } from '../../models/types';
 interface NetworkVisualizationProps {
   network: Network;
   packets: Packet[];
+  key?: string;
 }
 
 const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, packets }) => {
@@ -20,6 +21,32 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   const packetObjectsRef = useRef<Map<number, THREE.Mesh>>(new Map());
   const packetIdRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
+  
+  // Keep track of node and link counts to force re-renders
+  const [nodeCount, setNodeCount] = useState(0);
+  const [linkCount, setLinkCount] = useState(0);
+
+  // Force rerender when network changes
+  useEffect(() => {
+    const currentNodeCount = network.nodes.size;
+    let currentLinkCount = 0;
+    
+    // Count all links in the network
+    for (const node of network.nodes.values()) {
+      currentLinkCount += node.links.size;
+    }
+    // Links are bidirectional, so divide by 2 to get actual link count
+    currentLinkCount = Math.floor(currentLinkCount / 2);
+    
+    // Update state if counts have changed, forcing a re-render
+    if (nodeCount !== currentNodeCount) {
+      setNodeCount(currentNodeCount);
+    }
+    
+    if (linkCount !== currentLinkCount) {
+      setLinkCount(currentLinkCount);
+    }
+  }, [network, network.nodes, nodeCount, linkCount]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -145,10 +172,25 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     };
   }, []);
 
-  // Update visualization when network changes
+  // Update visualization when network changes (nodes and links)
   useEffect(() => {
-    updateVisualization();
-  }, [network]);
+    if (sceneRef.current) {
+      // Clear existing visualization before updating
+      for (const nodeObject of nodeObjectsRef.current.values()) {
+        sceneRef.current.remove(nodeObject);
+      }
+      nodeObjectsRef.current.clear();
+      
+      for (const linkObject of linkObjectsRef.current.values()) {
+        sceneRef.current.remove(linkObject.line);
+        sceneRef.current.remove(linkObject.costSprite);
+      }
+      linkObjectsRef.current.clear();
+      
+      // Rebuild the visualization
+      updateVisualization();
+    }
+  }, [nodeCount, linkCount]);
 
   // Update visualization when packets change
   useEffect(() => {
@@ -337,51 +379,18 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   const updateVisualization = () => {
     if (!sceneRef.current) return;
 
-    // Create/update nodes
+    console.log(`Updating visualization: ${nodeCount} nodes, ${linkCount} links`);
+
+    // Create nodes
     for (const node of network.nodes.values()) {
-      if (!nodeObjectsRef.current.has(node.id)) {
-        createNodeObject(node);
-      }
+      createNodeObject(node);
     }
 
-    // Remove nodes that no longer exist
-    for (const nodeId of nodeObjectsRef.current.keys()) {
-      if (!network.nodes.has(nodeId)) {
-        const nodeObject = nodeObjectsRef.current.get(nodeId);
-        if (nodeObject && sceneRef.current) {
-          sceneRef.current.remove(nodeObject);
-          nodeObjectsRef.current.delete(nodeId);
-        }
-      }
-    }
-
-    // Create/update links
+    // Create links
     for (const node of network.nodes.values()) {
       for (const [linkedNodeId, cost] of node.links.entries()) {
         if (node.id < linkedNodeId) { // Avoid duplicate links
-          const linkKey = `${node.id}-${linkedNodeId}`;
-          if (!linkObjectsRef.current.has(linkKey)) {
-            createLinkObject(node.id, linkedNodeId, cost);
-          }
-        }
-      }
-    }
-
-    // Remove links that no longer exist
-    for (const linkKey of linkObjectsRef.current.keys()) {
-      const [nodeId1Str, nodeId2Str] = linkKey.split('-');
-      const nodeId1 = parseInt(nodeId1Str);
-      const nodeId2 = parseInt(nodeId2Str);
-      
-      const node1 = network.getNode(nodeId1);
-      const node2 = network.getNode(nodeId2);
-      
-      if (!node1 || !node2 || !node1.links.has(nodeId2)) {
-        const linkObject = linkObjectsRef.current.get(linkKey);
-        if (linkObject && sceneRef.current) {
-          sceneRef.current.remove(linkObject.line);
-          sceneRef.current.remove(linkObject.costSprite);
-          linkObjectsRef.current.delete(linkKey);
+          createLinkObject(node.id, linkedNodeId, cost);
         }
       }
     }
