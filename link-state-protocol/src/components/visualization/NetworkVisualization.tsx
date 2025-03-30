@@ -59,7 +59,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     // Create scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    scene.background = new THREE.Color(0x1a1a1a); // Dark background
     sceneRef.current = scene;
 
     // Create camera
@@ -95,20 +95,20 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     controlsRef.current = controls;
 
     // Add lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // Reduced ambient light
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Increased directional light
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
 
     // Add a single plane to serve as a reference
-    const planeGeometry = new THREE.PlaneGeometry(30, 30);
+    const planeGeometry = new THREE.PlaneGeometry(100, 100);
     const planeMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xf8f8f8, 
+      color: 0x2a2a2a,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.8,
     });
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
     plane.rotation.x = Math.PI / 2;
@@ -116,8 +116,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     scene.add(plane);
 
     // Add subtle grid lines on the plane
-    const gridHelper = new THREE.GridHelper(30, 30, 0xaaaaaa, 0xdddddd);
-    gridHelper.position.y = -0.49; // Just above the plane
+    const gridHelper = new THREE.GridHelper(100, 50, 0x333333, 0x444444);
+    gridHelper.position.y = -0.49;
     scene.add(gridHelper);
 
     // Handle window resize
@@ -203,8 +203,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     // Create node geometry
     const geometry = new THREE.SphereGeometry(0.5, 32, 32);
     const material = new THREE.MeshPhongMaterial({
-      color: node.color,
-      emissive: node.color.clone().multiplyScalar(0.2)
+      color:  0x00ffff, // Changed to Deep Sky Blue (brighter blue)
+      emissive: node.color ? node.color.clone().multiplyScalar(0.2) : new THREE.Color(0x00BFFF),
+      shininess: 30
     });
     const mesh = new THREE.Mesh(geometry, material);
 
@@ -213,22 +214,25 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     // Add node ID text as a simple canvas texture
     const canvas = document.createElement('canvas');
-    canvas.width = 128; // Larger texture for better text quality
+    canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 64px Arial'; // Larger font
+      ctx.fillStyle = '#ffffff'; // White text
+      ctx.font = 'bold 64px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(node.id.toString(), 64, 64);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture,
+      transparent: true
+    });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.position.set(0, 0.7, 0);
-    sprite.scale.set(0.8, 0.8, 1); // Larger sprite
+    sprite.scale.set(0.8, 0.8, 1);
     mesh.add(sprite);
 
     sceneRef.current.add(mesh);
@@ -253,8 +257,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
-      color: 0x555555, // Darker line color
-      linewidth: 3 // Thicker lines (note: may not work in all browsers)
+      color: 0xffffff, // Lighter gray for better visibility
+      linewidth: 10 // Increased from 3 to 5
     });
 
     const line = new THREE.Line(geometry, material);
@@ -265,22 +269,25 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     ).multiplyScalar(0.5);
 
     const canvas = document.createElement('canvas');
-    canvas.width = 128; // Larger texture for better text quality
+    canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 64px Arial'; // Larger font
+      ctx.fillStyle = '#ffffff'; // White text
+      ctx.font = 'bold 64px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(cost.toString(), 64, 64);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture,
+      transparent: true
+    });
     const costSprite = new THREE.Sprite(spriteMaterial);
     costSprite.position.copy(midpoint);
-    costSprite.scale.set(0.8, 0.8, 1); // Larger sprite
+    costSprite.scale.set(0.8, 0.8, 1);
 
     sceneRef.current.add(line);
     sceneRef.current.add(costSprite);

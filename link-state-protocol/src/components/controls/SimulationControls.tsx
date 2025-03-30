@@ -39,14 +39,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       setMessage(`Starting hello packet animation for Node ${nodeId}...`);
 
       // Wait a moment before sending packets
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Send hello packets for the current node
       const packets = network.simulateNodeHelloPackets(nodeId);
       simulation.sendHelloPackets(nodeId);
       
       // Wait for the packets to reach their destinations
-      const animationTime = 1000; // 1 second for packet travel animation
+      const animationTime = 3000; // 3 seconds for packet travel animation
       await new Promise(resolve => setTimeout(resolve, animationTime));
       
       // Get and display node's neighbors
@@ -61,7 +61,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
       
       // Wait for user to see the neighbor table
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2500));
       
       // Hide the neighbor table before moving to the next node
       setShowNeighborTable(false);
@@ -70,7 +70,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     
     // Final cleanup
     setMessage('All nodes have completed sending hello packets');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     setMessage('');
     setIsAnimating(false);
     setCurrentNodeId(null);
@@ -91,6 +91,15 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
         </button>
       </div>
+      
+      {/* Animation progress */}
+      {isAnimating && (
+        <div className="animation-progress">
+          <div className="progress-bar">
+            <div className="progress-fill"></div>
+          </div>
+        </div>
+      )}
       
       {/* Animation message */}
       {message && (
