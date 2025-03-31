@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-size: 2.4rem; /* Base font size increase */
+  font-size: 1.4rem; /* Base font size increase */
 }
 
 .App-header {
@@ -16,7 +16,7 @@
 }
 
 .App-header h1 {
-  font-size: 2.4rem; /* Increased header font size */
+  font-size: 1.4rem; /* Increased header font size */
   margin: 0;
 }
 
@@ -69,13 +69,13 @@
 
 .control-group h2 {
   color: #ffffff;
-  font-size: 2.4rem; /* Increased from 1.4rem */
+  font-size: 1.4rem; /* Increased from 1.4rem */
   margin-bottom: 1.2rem;
 }
 
 .control-group h3 {
   color: #ffffff;
-  font-size: 2.4rem; /* Increased from 1.2rem */
+  font-size: 1.4rem; /* Increased from 1.2rem */
   margin-bottom: 1rem;
 }
 
@@ -84,7 +84,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  font-size: 2.0rem; /* Added base font size for input groups */
+  font-size: 1.2rem; /* Added base font size for input groups */
 }
 
 button {
@@ -95,7 +95,7 @@ button {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 1.9rem; /* Increased from 1.1rem */
+  font-size: 1.0rem; /* Increased from 1.1rem */
   transition: all 0.3s ease;
 }
 
@@ -125,8 +125,8 @@ button:disabled {
   background-color: #9c27b0;
   color: white;
   font-weight: bold;
-  font-size: 2.0rem; /* Increased from 1.2rem */
-  padding: 1rem 1.8rem;
+  font-size: 1.2rem; /* Increased from 1.2rem */
+  padding: 1rem 1.0rem;
   width: 100%;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -150,46 +150,6 @@ button:disabled {
   transform: none;
 }
 
-/* Animation progress bar */
-.animation-progress {
-  margin: 1rem 0;
-}
-
-.progress-bar {
-  height: 8px;
-  background-color: #444444;
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.progress-fill {
-  position: absolute;
-  height: 100%;
-  background: linear-gradient(90deg, #9c27b0, #ce93d8, #9c27b0);
-  background-size: 200% 100%;
-  width: 0%;
-  border-radius: 4px;
-  animation: progress-animation 15s ease-in-out forwards,
-             gradient-shift 3s linear infinite;
-  box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
-}
-
-@keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-@keyframes progress-animation {
-  0% { width: 0%; opacity: 0.5; }
-  20% { width: 20%; opacity: 0.7; }
-  40% { width: 40%; opacity: 0.8; }
-  60% { width: 60%; opacity: 0.9; }
-  80% { width: 80%; opacity: 1; }
-  100% { width: 100%; opacity: 1; }
-}
-
 /* Animation message */
 .animation-message {
   background-color: #333333;
@@ -207,7 +167,7 @@ input[type="text"] {
   padding: 0.8rem;
   border: 1px solid #444444;
   border-radius: 4px;
-  font-size: 1.8rem; /* Increased from 1.1rem */
+  font-size: 1.0rem; /* Increased from 1.1rem */
   background-color: #333333;
   color: #ffffff;
 }
@@ -236,7 +196,7 @@ input[type="range"] {
   border-radius: 4px;
   background-color: #333333;
   border-left: 4px solid #2196f3;
-  font-size: 1.6rem; /* Increased from 1rem */
+  font-size: 0.8rem; /* Increased from 1rem */
   color: #ffffff;
   animation: fadeOut 3s forwards;
   border: 1px solid #444444;
@@ -254,7 +214,7 @@ input[type="range"] {
   padding: 0.8rem;
   background-color: #333333;
   border-radius: 4px;
-  font-size: 1.6rem; /* Increased from 1rem */
+  font-size: 0.8rem; /* Increased from 1rem */
   display: flex;
   justify-content: space-between;
   color: #ffffff;
@@ -263,13 +223,13 @@ input[type="range"] {
 
 /* Headings */
 h2 {
-  font-size: 2.4rem;
+  font-size: 1.4rem;
   margin-top: 0.5rem;
   margin-bottom: 1rem;
 }
 
 h3 {
-  font-size: 1.6rem;
+  font-size: 0.8rem;
 }
 
 /* Routing Tables */
