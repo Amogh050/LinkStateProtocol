@@ -391,13 +391,38 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
       const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
       mesh.add(glowMesh);
     } else {
-      // Original LSP packet implementation
-      geometry = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+      // Simpler LSP packet with no additional decorations
+      geometry = new THREE.SphereGeometry(0.4, 16, 16); // Slightly larger sphere for better visibility
       material = new THREE.MeshPhongMaterial({ 
-        color: 0xff0000,
-        emissive: 0xaa0000
+        color: 0xff0000, // Pure red
+        shininess: 30,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.5 // Add a subtle glow effect
       });
       mesh = new THREE.Mesh(geometry, material);
+      
+      // Add simple "LSP" text as a label on the packet
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('LSP', 32, 16);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMaterial = new THREE.SpriteMaterial({ 
+        map: texture,
+        transparent: true
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.position.set(0, 0.4, 0);
+      sprite.scale.set(0.5, 0.25, 1);
+      mesh.add(sprite);
     }
 
     // Position at the source node
@@ -420,7 +445,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
         toNode.position.z
       ),
       progress: 0,
-      speed: 0.015, // Slower speed for better visualization
+      speed: packet.type === 'LSP' ? 0.005 : 0.015, // Slower speed for LSP packets
       packet: packet
     };
 
@@ -453,20 +478,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
           userData.progress
         );
         
-        // Add a small bouncing effect for HELLO packets
-        if (userData.packet.type === 'HELLO') {
-          // Add a sine wave to the y position for a bouncing effect
-          const bounceHeight = 0.1;
-          const bounceFrequency = 5;
-          const bounceOffset = Math.sin(userData.progress * Math.PI * bounceFrequency) * bounceHeight;
-          newPos.y += bounceOffset;
-          
-          // Rotate the packet as it moves
-          packetObject.rotation.y += 0.05;
-          packetObject.rotation.x += 0.03;
-        }
-        
+        // Simple straight-line movement for all packets
         packetObject.position.copy(newPos);
+        
+        // Simple rotation for all packets
+        packetObject.rotation.y += 0.01;
       }
     }
   };

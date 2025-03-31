@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Simulation } from '../../models/Simulation';
 import { Network } from '../../models/Network';
+import { Packet, LSPData, Link, PacketType } from '../../models/types';
 
 interface SimulationControlsProps {
   simulation: Simulation;
@@ -18,6 +19,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [allNodeNeighbors, setAllNodeNeighbors] = useState<Map<number, {neighborId: number, cost: number}[]>>(new Map());
   const [hasRunHelloPackets, setHasRunHelloPackets] = useState(false);
   const [activeNodeIds, setActiveNodeIds] = useState<number[]>([]);
+  const [isPerformingLSP, setIsPerformingLSP] = useState(false);
 
   // Function to get active node IDs
   const getActiveNodeIds = useCallback(() => {
@@ -160,6 +162,212 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     cleanupDeletedNodes(); // Make sure we clean up any deleted nodes
   };
 
+  const handlePerformLSPFlooding = async () => {
+    if (isAnimating || isPerformingLSP) return;
+    
+    // Check if hello packets have been run
+    if (!hasRunHelloPackets) {
+      setMessage('Please run Hello Packets first to discover neighbors');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setMessage('');
+      return;
+    }
+
+    // Clear any existing packets
+    network.packets = [];
+    simulation.onSimulationStep();
+
+    // Get all active node IDs
+    const nodeIds = getActiveNodeIds();
+
+    if (nodeIds.length === 0) {
+      setMessage('No active nodes in the network');
+      return;
+    }
+
+    setIsPerformingLSP(true);
+    setCurrentNodeIndex(0);
+
+    // Initial LSP message
+    setMessage('Starting LSP flooding process...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Process each node as an originator of LSPs
+    for (let i = 0; i < nodeIds.length; i++) {
+      const nodeId = nodeIds[i];
+      setCurrentNodeId(nodeId);
+      
+      // Get the node's neighbors
+      const nodeNeighbors = network.getNodeNeighbors(nodeId);
+      
+      // If no neighbors, skip this node
+      if (nodeNeighbors.length === 0) {
+        setMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue;
+      }
+      
+      // Generate LSP data once for this node
+      const lspData: LSPData = {
+        nodeId: nodeId,
+        links: nodeNeighbors.map(neighbor => ({ 
+          nodeId: neighbor.neighborId, 
+          cost: neighbor.cost 
+        }))
+      };
+      
+      // Create initial packets for the first round of flooding
+      const initialPackets: Packet[] = [];
+      for (const neighbor of nodeNeighbors) {
+        initialPackets.push({
+          type: 'LSP' as PacketType,
+          from: nodeId,
+          to: neighbor.neighborId,
+          data: lspData
+        });
+      }
+      
+      // Start directly with flooding simulation
+      setMessage(`Starting LSP flooding from Node ${nodeId}...`);
+      
+      // Simulate the flooding with the initial packets
+      const processedNodes = await simulateLSPFlooding(nodeId, initialPackets);
+      
+      setMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update routing tables for all affected nodes
+      for (const affectedNodeId of processedNodes) {
+        const node = network.getNode(affectedNodeId);
+        if (node) {
+          node.calculateRoutingTable();
+        }
+      }
+      
+      setCurrentNodeIndex(i + 1);
+    }
+    
+    // Final cleanup
+    setMessage('LSP flooding complete. All routing tables have been updated.');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setMessage('');
+    setIsPerformingLSP(false);
+    setCurrentNodeId(null);
+    setCurrentNodeIndex(0);
+    
+    // Force a redraw of the routing tables
+    simulation.status.step += 1;
+    simulation.onSimulationStep();
+  };
+
+  // Helper function to simulate the LSP flooding process with visualizations
+  const simulateLSPFlooding = async (sourceNodeId: number, initialPackets: Packet[]) => {
+    // Track which nodes have processed each source node's LSP
+    // Map of sourceNodeId => Set of nodes that processed its LSP
+    const processedLSPs = new Map<number, Set<number>>();
+    processedLSPs.set(sourceNodeId, new Set([sourceNodeId]));
+    
+    // Queue of packets to be processed
+    let pendingPackets = [...initialPackets];
+    let round = 1;
+    
+    // Process packets until queue is empty
+    while (pendingPackets.length > 0) {
+      setMessage(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
+      
+      // Clear any existing packets
+      network.packets = [];
+      simulation.onSimulationStep();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set the new packets and visualize them
+      network.packets = pendingPackets;
+      simulation.onSimulationStep(); // Trigger simulation update
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Collect new packets to be sent in the next round
+      const nextRoundPackets: Packet[] = [];
+      
+      // Process each packet
+      for (const packet of pendingPackets) {
+        const targetNodeId = packet.to;
+        const sourceLSPNodeId = packet.data.nodeId; // The node that originated this LSP
+        
+        // Ensure we have a set for this source node
+        if (!processedLSPs.has(sourceLSPNodeId)) {
+          processedLSPs.set(sourceLSPNodeId, new Set());
+        }
+        
+        const processedNodesForSource = processedLSPs.get(sourceLSPNodeId)!;
+        
+        // Skip if this target node already processed this source's LSP
+        if (processedNodesForSource.has(targetNodeId)) {
+          continue;
+        }
+        
+        // Mark this node as having processed this source's LSP
+        processedNodesForSource.add(targetNodeId);
+        
+        // Get the target node's neighbors
+        const targetNode = network.getNode(targetNodeId);
+        if (!targetNode || !targetNode.active) continue;
+        
+        // Update the target node's topology database
+        if (!targetNode.topologyDatabase.has(sourceLSPNodeId)) {
+          targetNode.topologyDatabase.set(sourceLSPNodeId, new Map());
+        }
+        
+        const links = packet.data.links;
+        const nodeLinks = targetNode.topologyDatabase.get(sourceLSPNodeId)!;
+        let updatedInfo = false;
+        
+        // Update links in the topology database
+        for (const link of links) {
+          if (!nodeLinks.has(link.nodeId) || nodeLinks.get(link.nodeId) !== link.cost) {
+            nodeLinks.set(link.nodeId, link.cost);
+            updatedInfo = true;
+          }
+        }
+        
+        // Only flood to neighbors if this is new information
+        if (updatedInfo) {
+          // Flood to all neighbors except the one we received from
+          const neighborIds = Array.from(targetNode.links.keys());
+          for (const neighborId of neighborIds) {
+            // Skip the sender to avoid loops
+            if (neighborId === packet.from) continue;
+            
+            // Skip if this neighbor already processed this source's LSP
+            if (processedNodesForSource.has(neighborId)) continue;
+            
+            // Create a new packet to forward
+            nextRoundPackets.push({
+              type: 'LSP' as PacketType,
+              from: targetNodeId,
+              to: neighborId,
+              data: packet.data // Forward the same LSP data
+            });
+          }
+        }
+      }
+      
+      // Move to next round
+      pendingPackets = nextRoundPackets;
+      round++;
+      
+      // Safety check to prevent infinite loops
+      if (round > 15 || nextRoundPackets.length === 0) {
+        if (round > 15) {
+          setMessage('LSP flooding terminated - maximum rounds reached');
+        }
+        break;
+      }
+    }
+    
+    // Return all nodes that processed LSPs from the source node
+    return processedLSPs.get(sourceNodeId) || new Set();
+  };
+
   return (
     <div className="control-group">
       <h2>Simulation Controls</h2>
@@ -169,9 +377,20 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         <button 
           className="hello-button"
           onClick={handleSendHelloPackets}
-          disabled={isAnimating}
+          disabled={isAnimating || isPerformingLSP}
         >
           {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
+        </button>
+      </div>
+
+      {/* LSP flooding button */}
+      <div className="input-group">
+        <button 
+          className="lsp-button"
+          onClick={handlePerformLSPFlooding}
+          disabled={isAnimating || isPerformingLSP}
+        >
+          {isPerformingLSP ? 'LSP Flooding in Progress...' : 'Start LSP Flooding'}
         </button>
       </div>
 
@@ -186,7 +405,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       </div>
       
       {/* Animation progress */}
-      {isAnimating && (
+      {(isAnimating || isPerformingLSP) && (
         <div className="animation-progress">
           <div className="progress-bar">
             <div className="progress-fill"></div>

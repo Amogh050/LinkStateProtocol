@@ -125,29 +125,92 @@ button:disabled {
   background-color: #9c27b0;
   color: white;
   font-weight: bold;
-  font-size: 1.2rem; /* Increased from 1.2rem */
-  padding: 1rem 1.0rem;
+  font-size: 1.2rem;
+  padding: 1rem 1.5rem;
   width: 100%;
   border-radius: 8px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  margin: 1rem 0;
+  margin-bottom: 1.5rem;
   transition: all 0.3s ease;
 }
 
-.hello-button:hover:not(:disabled) {
+.hello-button:hover {
   background-color: #7b1fa2;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.hello-button:active:not(:disabled) {
+.hello-button:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .hello-button:disabled {
-  background-color: #666666;
+  background-color: #ba68c8;
+  opacity: 0.7;
+  cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+/* LSP flooding button */
+.lsp-button {
+  background-color: #f44336;
+  color: white;
+  font-weight: bold;
+  font-size: 1.3rem; /* Larger font */
+  padding: 1.2rem 1.5rem; /* More padding */
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(244, 67, 54, 0.4); /* Stronger shadow with color */
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 3px 10px rgba(244, 67, 54, 0.4);
+  }
+  50% {
+    box-shadow: 0 3px 15px rgba(244, 67, 54, 0.7);
+  }
+  100% {
+    box-shadow: 0 3px 10px rgba(244, 67, 54, 0.4);
+  }
+}
+
+.lsp-button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top, rgba(255,255,255,0.1), transparent);
+  z-index: -1;
+}
+
+.lsp-button:hover {
+  background-color: #d32f2f;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(244, 67, 54, 0.5);
+}
+
+.lsp-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.lsp-button:disabled {
+  background-color: #ef9a9a;
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Animation message */
@@ -419,4 +482,162 @@ h3 {
 
 .node-table-container:last-child {
   margin-bottom: 0;
+}
+
+/* Routing Tables Styling */
+.routing-tables-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #222222;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.routing-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+}
+
+.routing-header h2 {
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.update-indicator {
+  font-size: 0.8rem;
+  color: #4caf50;
+  margin-left: 0.5rem;
+  animation: fadeInOut 2s ease infinite;
+}
+
+.routing-header h2::after {
+  content: '';
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.routing-info {
+  font-size: 0.9rem;
+  color: #aaaaaa;
+  line-height: 1.4;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.node-routing-table {
+  background-color: #2a2a2a;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 1px solid #333333;
+  animation: pulse 1s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+}
+
+.node-routing-table:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border-color: #2196f3;
+  transform: translateY(-2px);
+}
+
+.node-routing-table.selected {
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+}
+
+.node-routing-table.updated {
+  animation: highlightUpdated 2s ease;
+}
+
+@keyframes highlightUpdated {
+  0% { background-color: rgba(76, 175, 80, 0.3); }
+  100% { background-color: #2a2a2a; }
+}
+
+.node-routing-header {
+  background-color: #333333;
+  color: #ffffff;
+  padding: 0.8rem;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.expand-icon {
+  font-size: 1.4rem;
+  color: #2196f3;
+  font-weight: bold;
+}
+
+.table-container {
+  padding: 1rem;
+}
+
+.routing-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.routing-table th, 
+.routing-table td {
+  padding: 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #444444;
+}
+
+.routing-table th {
+  background-color: #2d2d2d;
+  color: #2196f3;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.routing-table tr:last-child td {
+  border-bottom: none;
+}
+
+.routing-table tr:hover td {
+  background-color: #333333;
+}
+
+.no-routes-message {
+  color: #ff9800;
+  padding: 0.5rem;
+  background-color: rgba(255, 152, 0, 0.1);
+  border-radius: 4px;
+  font-style: italic;
+}
+
+.no-nodes-message {
+  color: #f44336;
+  padding: 1rem;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  text-align: center;
+  font-style: italic;
 } 
