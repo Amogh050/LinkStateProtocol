@@ -358,4 +358,65 @@ h3 {
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toggle button styling */
+.toggle-button {
+  background-color: #2196f3;
+  color: white;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 0.8rem 1.2rem;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  margin: 1rem 0;
+  transition: all 0.3s ease;
+}
+
+.toggle-button:hover {
+  background-color: #1976d2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* All tables container styling */
+.all-tables-container {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.all-tables-container h3 {
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  border-bottom: 2px solid #2196f3;
+  padding-bottom: 0.5rem;
+}
+
+.node-table-container {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #333333;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.node-table-container h4 {
+  color: #ffffff;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #2196f3;
+}
+
+.node-table-container:last-child {
+  margin-bottom: 0;
 } 

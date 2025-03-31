@@ -109,16 +109,33 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.8,
+      depthWrite: false,
+      depthTest: false
     });
     const plane = new THREE.Mesh(planeGeometry, planeMaterial);
     plane.rotation.x = Math.PI / 2;
     plane.position.y = -0.5;
     scene.add(plane);
 
-    // Add subtle grid lines on the plane
-    const gridHelper = new THREE.GridHelper(100, 50, 0x333333, 0x444444);
+    // Create an infinite grid effect
+    const gridSize = 100;
+    const gridDivisions = 50;
+    const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x333333, 0x444444);
     gridHelper.position.y = -0.49;
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.8;
+    gridHelper.material.depthWrite = false;
+    gridHelper.material.depthTest = false;
     scene.add(gridHelper);
+
+    // Add a second grid helper for the infinite effect
+    const gridHelper2 = new THREE.GridHelper(gridSize, gridDivisions, 0x333333, 0x444444);
+    gridHelper2.position.y = -0.49;
+    gridHelper2.material.transparent = true;
+    gridHelper2.material.opacity = 0.8;
+    gridHelper2.material.depthWrite = false;
+    gridHelper2.material.depthTest = false;
+    scene.add(gridHelper2);
 
     // Handle window resize
     const handleResize = () => {
@@ -136,7 +153,27 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     // Initial resize
     handleResize();
 
-    // Animation loop
+    // Update grid positions in animation loop
+    const updateGrids = () => {
+      if (!cameraRef.current) return;
+      
+      const cameraPosition = cameraRef.current.position;
+      const gridSize = 100;
+      
+      // Calculate grid positions based on camera position
+      const grid1X = Math.floor(cameraPosition.x / gridSize) * gridSize;
+      const grid1Z = Math.floor(cameraPosition.z / gridSize) * gridSize;
+      const grid2X = grid1X + gridSize;
+      const grid2Z = grid1Z + gridSize;
+      
+      // Position the grids
+      gridHelper.position.x = grid1X;
+      gridHelper.position.z = grid1Z;
+      gridHelper2.position.x = grid2X;
+      gridHelper2.position.z = grid2Z;
+    };
+
+    // Modify the animation loop to include grid updates
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       
@@ -144,6 +181,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
         controlsRef.current.update();
       }
       
+      updateGrids();
       updatePackets();
       
       if (rendererRef.current && sceneRef.current && cameraRef.current) {

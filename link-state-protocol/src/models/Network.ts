@@ -24,11 +24,32 @@ export class Network {
       return false;
     }
     
-    // Remove all links to this node
+    // Remove all links to this node and clean up topology databases
     for (const node of this.nodes.values()) {
+      // Remove direct links
       if (node.links.has(nodeId)) {
         node.removeLink(nodeId);
       }
+      
+      // Remove the deleted node from topology database
+      if (node.topologyDatabase.has(nodeId)) {
+        node.topologyDatabase.delete(nodeId);
+      }
+      
+      // Remove the deleted node from all other nodes' topology databases
+      for (const [sourceNodeId, nodeLinks] of node.topologyDatabase.entries()) {
+        if (nodeLinks.has(nodeId)) {
+          nodeLinks.delete(nodeId);
+        }
+      }
+      
+      // Remove the deleted node from routing table
+      if (node.routingTable.has(nodeId)) {
+        node.routingTable.delete(nodeId);
+      }
+      
+      // Recalculate routing table since topology has changed
+      node.calculateRoutingTable();
     }
     
     // Remove the node itself
