@@ -9,6 +9,8 @@ export class Node {
   routingTable: Map<number, Route>; // Map of destinationId -> {nextHop, cost}
   color: Color;
   active: boolean;
+  lsp: LSPData; // Link State Packet data
+  private lspSequenceNumber: number;
 
   constructor(id: number, position: Position) {
     this.id = id;
@@ -18,6 +20,12 @@ export class Node {
     this.routingTable = new Map<number, Route>();
     this.color = new Color(0x3498db);
     this.active = true;
+    this.lspSequenceNumber = 0;
+    this.lsp = {
+      nodeId: id,
+      links: [],
+      sequenceNumber: this.lspSequenceNumber
+    };
   }
 
   addLink(targetNode: Node, cost: number): void {
@@ -28,6 +36,8 @@ export class Node {
         this.topologyDatabase.set(this.id, new Map<number, number>());
       }
       this.topologyDatabase.get(this.id)?.set(targetNode.id, cost);
+      // Update LSP
+      this.updateLSP();
     }
   }
 
@@ -38,7 +48,18 @@ export class Node {
       if (this.topologyDatabase.has(this.id)) {
         this.topologyDatabase.get(this.id)?.delete(targetNodeId);
       }
+      // Update LSP
+      this.updateLSP();
     }
+  }
+
+  private updateLSP(): void {
+    this.lspSequenceNumber++;
+    this.lsp = {
+      nodeId: this.id,
+      links: Array.from(this.links.entries()).map(([nodeId, cost]) => ({ nodeId, cost })),
+      sequenceNumber: this.lspSequenceNumber
+    };
   }
 
   sendHelloPackets(network: any): Packet[] {
@@ -54,7 +75,8 @@ export class Node {
           to: neighborId,
           data: { 
             senderId: this.id,
-            cost: cost  // Include the link cost in the packet
+            cost: cost,  // Include the link cost in the packet
+            lsp: this.lsp
           }
         });
       }
@@ -68,7 +90,7 @@ export class Node {
     const packets: Packet[] = [];
     const lspData: LSPData = {
       nodeId: this.id,
-      links: Array.from(this.links.entries()).map(([nodeId, cost]) => ({ nodeId, cost }))
+      links: Array.from(this.links.entries()).map(([nodeId, cost]) => ({ nodeId, cost })),
     };
 
     for (const [neighborId] of this.links.entries()) {
@@ -90,6 +112,12 @@ export class Node {
     
     const sourceNodeId = lsp.data.nodeId;
     const linksData = lsp.data.links;
+    const ttl = lsp.data.ttl;
+    
+    // If TTL is 0, don't forward the packet
+    if (ttl <= 0) {
+      return [];
+    }
     
     // Check if we already have this information
     let isNewInfo = false;
@@ -108,42 +136,58 @@ export class Node {
       }
     }
     
-    // Forward LSP to neighbors if it's new information
+    // Forward LSP to neighbors if TTL > 0
     const forwardPackets: Packet[] = [];
-    if (isNewInfo) {
-      for (const [neighborId] of this.links.entries()) {
-        if (neighborId !== lsp.from) { // Don't send back to the sender
-          const neighbor = network.getNode(neighborId);
-          if (neighbor && neighbor.active) {
-            forwardPackets.push({
-              type: 'LSP',
-              from: this.id,
-              to: neighborId,
-              data: lsp.data
-            });
-          }
+    for (const [neighborId] of this.links.entries()) {
+      if (neighborId !== lsp.from) { // Don't send back to the sender
+        const neighbor = network.getNode(neighborId);
+        if (neighbor && neighbor.active) {
+          // Create a new packet with the same direction as the original
+          forwardPackets.push({
+            type: 'LSP',
+            from: this.id, // Use current node as sender for the forwarded packet
+            to: neighborId,
+            data: {
+              ...lsp.data,
+              ttl: ttl - 1  // Decrement TTL
+            }
+          });
         }
       }
-      
-      // Recalculate routing table
-      this.calculateRoutingTable();
     }
     
     return forwardPackets;
   }
 
   calculateRoutingTable(): void {
+    // Clear existing routing table
+    this.routingTable.clear();
+    
+    // If topology database is empty, don't calculate routes
+    if (this.topologyDatabase.size === 0) {
+      return;
+    }
+
     // Implementation of Dijkstra's algorithm
     const distances = new Map<number, number>();
     const previous = new Map<number, number>();
     const unvisited = new Set<number>();
     
-    // Initialize distances
-    for (const nodeId of this.topologyDatabase.keys()) {
+    // Initialize distances for all known nodes from topology database
+    for (const [nodeId, _] of this.topologyDatabase) {
       distances.set(nodeId, Infinity);
       unvisited.add(nodeId);
     }
     
+    // Add direct neighbors if they're not in topology database yet
+    for (const [neighborId, cost] of this.links) {
+      if (!distances.has(neighborId)) {
+        distances.set(neighborId, Infinity);
+        unvisited.add(neighborId);
+      }
+    }
+    
+    // Set distance to self as 0
     distances.set(this.id, 0);
     
     while (unvisited.size > 0) {
@@ -165,24 +209,22 @@ export class Node {
       
       unvisited.delete(current);
       
-      // Check neighbors of current node
+      // Check neighbors of current node from topology database
       const neighbors = this.topologyDatabase.get(current);
-      if (!neighbors) continue;
-      
-      for (const [neighborId, cost] of neighbors.entries()) {
-        if (!unvisited.has(neighborId)) continue;
-        
-        const newDistance = (distances.get(current) || 0) + cost;
-        if (newDistance < (distances.get(neighborId) || Infinity)) {
-          distances.set(neighborId, newDistance);
-          previous.set(neighborId, current);
+      if (neighbors) {
+        for (const [neighborId, cost] of neighbors.entries()) {
+          if (!unvisited.has(neighborId)) continue;
+          
+          const newDistance = (distances.get(current) || 0) + cost;
+          if (newDistance < (distances.get(neighborId) || Infinity)) {
+            distances.set(neighborId, newDistance);
+            previous.set(neighborId, current);
+          }
         }
       }
     }
     
-    // Build routing table
-    this.routingTable.clear();
-    
+    // Build routing table only for nodes with valid paths
     for (const [nodeId, distance] of distances.entries()) {
       if (nodeId === this.id || distance === Infinity) continue;
       
@@ -195,10 +237,12 @@ export class Node {
         nextHop = currentNode;
       }
       
-      this.routingTable.set(nodeId, {
-        nextHop: nextHop,
-        cost: distance
-      });
+      if (previous.has(currentNode)) { // Only add if there is a valid path
+        this.routingTable.set(nodeId, {
+          nextHop: nextHop,
+          cost: distance
+        });
+      }
     }
   }
 } 

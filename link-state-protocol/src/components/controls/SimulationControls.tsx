@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Simulation } from '../../models/Simulation';
 import { Network } from '../../models/Network';
 import { Packet, LSPData, Link, PacketType } from '../../models/types';
+import Swal from 'sweetalert2';
 
 interface SimulationControlsProps {
   simulation: Simulation;
@@ -16,6 +17,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [showNeighborTable, setShowNeighborTable] = useState(false);
   const [currentNodeIndex, setCurrentNodeIndex] = useState<number>(0);
   const [showAllTables, setShowAllTables] = useState(false);
+  const [showNetworkTopology, setShowNetworkTopology] = useState(false);
   const [allNodeNeighbors, setAllNodeNeighbors] = useState<Map<number, {neighborId: number, cost: number}[]>>(new Map());
   const [hasRunHelloPackets, setHasRunHelloPackets] = useState(false);
   const [activeNodeIds, setActiveNodeIds] = useState<number[]>([]);
@@ -368,6 +370,76 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     return processedLSPs.get(sourceNodeId) || new Set();
   };
 
+  const handleShowNetworkTopology = () => {
+    if (!hasRunHelloPackets) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Please run the LSP flooding simulation first.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    if (activeNodeIds.length === 0) {
+      Swal.fire({
+        title: 'Error',
+        text: 'No active nodes in the network. Add some nodes first.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Create the table HTML
+    const tableHTML = `
+      <div class="network-topology-container">
+        <table class="network-topology-table">
+          <thead>
+            <tr>
+              <th>LSP Originator</th>
+              <th>Neighbors & Metrics</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${activeNodeIds.map(nodeId => {
+              const node = network.getNode(nodeId);
+              if (!node) return '';
+
+              // Get all neighbors from topology database
+              const nodeTopology = node.topologyDatabase.get(nodeId);
+              if (!nodeTopology) return '';
+
+              const neighborsList = Array.from(nodeTopology.entries())
+                .map(([neighborId, cost]) => `Node ${neighborId} (cost ${cost})`)
+                .join(', ');
+
+              // Get sequence number (you may need to add this to your Node class)
+              const sequenceNumber = node.lsp.sequenceNumber || '-';
+              
+              return `
+                <tr>
+                  <td>Node ${nodeId}</td>
+                  <td>${neighborsList || 'No neighbors'}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // Show the popup with the table
+    Swal.fire({
+      title: 'Network Topology after LSP Flooding',
+      html: tableHTML,
+      width: '80%',
+      customClass: {
+        container: 'network-topology-popup',
+        popup: 'network-topology-popup-content',
+        htmlContainer: 'network-topology-popup-html'
+      }
+    });
+  };
+
   return (
     <div className="control-group">
       <h2>Simulation Controls</h2>
@@ -401,6 +473,17 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           onClick={() => setShowAllTables(prev => !prev)}
         >
           {showAllTables ? 'Hide Neighbouring Tables' : 'See Neighbouring Tables'}
+        </button>
+      </div>
+
+      {/* Toggle button for showing network topology */}
+      <div className="input-group">
+        <button 
+          className="toggle-button"
+          onClick={() => handleShowNetworkTopology()}
+          disabled={!hasRunHelloPackets}
+        >
+          Show Network Topology
         </button>
       </div>
       

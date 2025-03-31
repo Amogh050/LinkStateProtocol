@@ -32,6 +32,7 @@ export interface HelloPacketData {
 export interface LSPData {
   nodeId: number;
   links: Link[];
+  sequenceNumber?: number;
 }
 
 export interface NodeVisual {
