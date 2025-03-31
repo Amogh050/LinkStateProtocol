@@ -120,14 +120,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       setMessage(`Starting hello packet animation for Node ${nodeId}...`);
 
       // Wait a moment before sending packets
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Send hello packets for the current node
       network.simulateNodeHelloPackets(nodeId);
       simulation.sendHelloPackets(nodeId);
       
       // Wait for the packets to reach their destinations
-      const animationTime = 3000; // 3 seconds for packet travel animation
+      const animationTime = 1000; // 3 seconds for packet travel animation
       await new Promise(resolve => setTimeout(resolve, animationTime));
       
       // Get and display node's neighbors
