@@ -387,12 +387,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Clear any existing packets
       network.packets = [];
       simulation.onSimulationStep();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 20));
       
       // Set the new packets and visualize them
       network.packets = pendingPackets;
       simulation.onSimulationStep(); // Trigger simulation update
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Collect new packets to be sent in the next round
       const nextRoundPackets: Packet[] = [];
@@ -493,10 +493,10 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   };
 
   const handleShowNetworkTopology = () => {
-    if (!hasRunHelloPackets) {
+    if (!routingTablesAvailable) {
       Swal.fire({
         title: 'Error',
-        text: 'Please run the LSP flooding simulation first.',
+        text: 'Please complete LSP flooding first to view network topology.',
         icon: 'error'
       });
       return;
@@ -884,7 +884,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         <button 
           className="toggle-button"
           onClick={() => handleShowNetworkTopology()}
-          disabled={!hasRunHelloPackets}
+          disabled={!routingTablesAvailable}
         >
           Show Network Topology
         </button>

@@ -445,7 +445,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
         toNode.position.z
       ),
       progress: 0,
-      speed: packet.type === 'LSP' ? 0.005 : 0.015, // Slower speed for LSP packets
+      speed: packet.type === 'LSP' ? 0.025 : 0.075, // Increased speeds for faster animation
       packet: packet
     };
 
