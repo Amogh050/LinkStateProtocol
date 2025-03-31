@@ -6,7 +6,6 @@ import { SimulationStatus, Packet } from './models/types';
 import NetworkVisualization from './components/visualization/NetworkVisualization';
 import NetworkControls from './components/controls/NetworkControls';
 import SimulationControls from './components/controls/SimulationControls';
-import RoutingTables from './components/routing/RoutingTables';
 
 function App() {
   // Add a force update counter to trigger re-renders
@@ -91,8 +90,6 @@ function App() {
             simulation={simulationState.simulation} 
             network={network}
           />
-          
-          <RoutingTables network={network} />
         </div>
         
         <div className="visualization-area">

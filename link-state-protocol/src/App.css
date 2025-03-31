@@ -640,4 +640,221 @@ h3 {
   border-radius: 4px;
   text-align: center;
   font-style: italic;
+}
+
+/* Routing Tables Popup */
+.routing-tables-popup .swal2-popup {
+  background-color: #222;
+  color: white;
+  padding: 2rem;
+  max-width: 90vw !important;
+  width: auto !important;
+}
+
+.routing-tables-popup .swal2-title {
+  color: white;
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.routing-tables-popup-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 2rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.routing-table-section {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid #444;
+  overflow: hidden;
+}
+
+.routing-table-section h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #4a90e2;
+  font-size: 1.3rem;
+  text-align: center;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.8rem;
+}
+
+.routing-table-display {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  border: 1px solid #444;
+}
+
+.routing-table-display th,
+.routing-table-display td {
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid #444;
+}
+
+.routing-table-display th {
+  background-color: #333;
+  font-weight: bold;
+  color: #4a90e2;
+}
+
+.routing-table-display tr:nth-child(odd) {
+  background-color: #333;
+}
+
+.routing-table-display tr:hover {
+  background-color: #383838;
+}
+
+/* Style for unreachable routes */
+.unreachable-route {
+  color: #888;
+}
+
+.unreachable-route td:nth-child(3) {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.unreachable-route td:nth-child(4) {
+  color: #888;
+  font-style: italic;
+}
+
+/* Style for routes being calculated */
+.calculating-route {
+  color: #aaa;
+}
+
+.calculating-route td:nth-child(3) {
+  color: #ffb74d;
+  font-weight: bold;
+}
+
+.calculating-route td:nth-child(4) {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Path column highlighting */
+.routing-table-display td:nth-child(4) {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+/* Routing Tables Ready Button */
+.routing-tables-ready {
+  background-color: #4caf50 !important;
+  position: relative;
+  overflow: hidden;
+  animation: tablesPulse 2s infinite;
+  color: white;
+  font-weight: bold;
+  border: 2px solid #8bc34a;
+}
+
+.routing-tables-ready::before {
+  content: "✓";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #ffeb3b;
+}
+
+.routing-tables-ready::after {
+  content: 'NEW';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: #ffeb3b;
+  color: #333;
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 10px;
+  font-weight: bold;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.routing-tables-ready:hover {
+  background-color: #3d8b40 !important;
+  transform: translateY(-2px);
+}
+
+@keyframes tablesPulse {
+  0% {
+    box-shadow: 0 3px 10px rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 3px 15px rgba(76, 175, 80, 0.7);
+  }
+  100% {
+    box-shadow: 0 3px 10px rgba(76, 175, 80, 0.4);
+  }
+}
+
+/* Network Topology Popup */
+.network-topology-popup .swal2-popup {
+  background-color: #222;
+  color: white;
+  padding: 2rem;
+  max-width: 90vw !important;
+  width: auto !important;
+}
+
+.network-topology-popup .swal2-title {
+  color: white;
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.network-topology-container {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.network-topology-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+  border: 1px solid #444;
+}
+
+.network-topology-table th,
+.network-topology-table td {
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid #444;
+}
+
+.network-topology-table th {
+  background-color: #333;
+  font-weight: bold;
+  color: #4a90e2;
+}
+
+.network-topology-table tr:nth-child(odd) {
+  background-color: #2a2a2a;
+}
+
+.network-topology-table tr:hover {
+  background-color: #383838;
 } 

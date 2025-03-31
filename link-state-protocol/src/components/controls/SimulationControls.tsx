@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Simulation } from '../../models/Simulation';
 import { Network } from '../../models/Network';
 import { Packet, LSPData, Link, PacketType } from '../../models/types';
+import { Node } from '../../models/Node';
 import Swal from 'sweetalert2';
 
 interface SimulationControlsProps {
@@ -22,6 +23,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [hasRunHelloPackets, setHasRunHelloPackets] = useState(false);
   const [activeNodeIds, setActiveNodeIds] = useState<number[]>([]);
   const [isPerformingLSP, setIsPerformingLSP] = useState(false);
+  const [routingTablesAvailable, setRoutingTablesAvailable] = useState(false);
 
   // Function to get active node IDs
   const getActiveNodeIds = useCallback(() => {
@@ -85,6 +87,13 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   useEffect(() => {
     updateAllNodeNeighbors();
   }, [network, updateAllNodeNeighbors]);
+
+  // Check routing tables availability whenever network changes
+  useEffect(() => {
+    const hasRoutingTablesNow = hasRoutingTables();
+    setRoutingTablesAvailable(hasRoutingTablesNow);
+    console.log(`Routing tables availability updated: ${hasRoutingTablesNow}`);
+  }, [network, network.nodes]); // Re-run when network or its nodes change
 
   const handleSendHelloPackets = async () => {
     if (isAnimating) return;
@@ -190,76 +199,171 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     setIsPerformingLSP(true);
     setCurrentNodeIndex(0);
 
-    // Initial LSP message
-    setMessage('Starting LSP flooding process...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Clear all existing routing tables first
+      for (const nodeId of nodeIds) {
+        const node = network.getNode(nodeId);
+        if (node) {
+          // Clear routing table
+          node.routingTable.clear();
+          
+          // Also clear topology database to start fresh
+          node.topologyDatabase.clear();
+          
+          // Initialize node's own entry in topology database
+          const nodeLinks = new Map<number, number>();
+          for (const [linkNodeId, cost] of node.links.entries()) {
+            if (network.getNode(linkNodeId)?.active) {
+              nodeLinks.set(linkNodeId, cost);
+            }
+          }
+          node.topologyDatabase.set(node.id, nodeLinks);
+        }
+      }
 
-    // Process each node as an originator of LSPs
-    for (let i = 0; i < nodeIds.length; i++) {
-      const nodeId = nodeIds[i];
-      setCurrentNodeId(nodeId);
-      
-      // Get the node's neighbors
-      const nodeNeighbors = network.getNodeNeighbors(nodeId);
-      
-      // If no neighbors, skip this node
-      if (nodeNeighbors.length === 0) {
-        setMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        continue;
+      // Initial LSP message
+      setMessage('Starting LSP flooding process...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Track all processed nodes for final routing table calculation
+      const allProcessedNodes = new Set<number>();
+
+      // Process each node as an originator of LSPs
+      for (let i = 0; i < nodeIds.length; i++) {
+        const nodeId = nodeIds[i];
+        setCurrentNodeId(nodeId);
+        
+        // Get the node's neighbors
+        const nodeNeighbors = network.getNodeNeighbors(nodeId);
+        
+        // If no neighbors, skip this node
+        if (nodeNeighbors.length === 0) {
+          setMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          continue;
+        }
+        
+        // Generate LSP data once for this node
+        const lspData: LSPData = {
+          nodeId: nodeId,
+          links: nodeNeighbors.map(neighbor => ({ 
+            nodeId: neighbor.neighborId, 
+            cost: neighbor.cost 
+          }))
+        };
+        
+        // Create initial packets for the first round of flooding
+        const initialPackets: Packet[] = [];
+        for (const neighbor of nodeNeighbors) {
+          initialPackets.push({
+            type: 'LSP' as PacketType,
+            from: nodeId,
+            to: neighbor.neighborId,
+            data: lspData
+          });
+        }
+        
+        // Start directly with flooding simulation
+        setMessage(`Starting LSP flooding from Node ${nodeId}...`);
+        
+        // Simulate the flooding with the initial packets
+        const processedNodes = await simulateLSPFlooding(nodeId, initialPackets);
+        
+        // Add all processed nodes to the global set
+        processedNodes.forEach(node => allProcessedNodes.add(node));
+        
+        setMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setCurrentNodeIndex(i + 1);
       }
-      
-      // Generate LSP data once for this node
-      const lspData: LSPData = {
-        nodeId: nodeId,
-        links: nodeNeighbors.map(neighbor => ({ 
-          nodeId: neighbor.neighborId, 
-          cost: neighbor.cost 
-        }))
-      };
-      
-      // Create initial packets for the first round of flooding
-      const initialPackets: Packet[] = [];
-      for (const neighbor of nodeNeighbors) {
-        initialPackets.push({
-          type: 'LSP' as PacketType,
-          from: nodeId,
-          to: neighbor.neighborId,
-          data: lspData
-        });
-      }
-      
-      // Start directly with flooding simulation
-      setMessage(`Starting LSP flooding from Node ${nodeId}...`);
-      
-      // Simulate the flooding with the initial packets
-      const processedNodes = await simulateLSPFlooding(nodeId, initialPackets);
-      
-      setMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Update routing tables for all affected nodes
-      for (const affectedNodeId of processedNodes) {
-        const node = network.getNode(affectedNodeId);
+      setMessage('Calculating final routing tables for all nodes...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Verify each node has a complete topology database
+      let routesCalculated = 0;
+      
+      // Recalculate routing tables for all active nodes
+      for (const nodeId of nodeIds) {
+        const node = network.getNode(nodeId);
         if (node) {
-          node.calculateRoutingTable();
+          try {
+            // Make sure the node has its own topology information
+            if (!node.topologyDatabase.has(node.id)) {
+              console.log(`Node ${nodeId} missing own topology info, adding it now`);
+              const nodeLinks = new Map<number, number>();
+              for (const [linkNodeId, cost] of node.links.entries()) {
+                if (network.getNode(linkNodeId)?.active) {
+                  nodeLinks.set(linkNodeId, cost);
+                }
+              }
+              node.topologyDatabase.set(node.id, nodeLinks);
+            }
+            
+            // Log topology database before calculation
+            console.log(`Node ${nodeId} topology database:`, 
+              Array.from(node.topologyDatabase.entries())
+                .map(([sourceId, links]) => `${sourceId} -> ${Array.from(links.entries()).length} links`)
+                .join(', '));
+            
+            // Calculate routing table
+            node.calculateRoutingTable();
+            
+            // If no routes were calculated but the node has links,
+            // ensure at least direct routes to neighbors exist
+            if (node.routingTable.size === 0 && node.links.size > 0) {
+              console.log(`No routes calculated for Node ${nodeId}, adding direct routes to neighbors as fallback`);
+              
+              // Add direct routes to neighbors
+              for (const [neighborId, cost] of node.links.entries()) {
+                const neighbor = network.getNode(neighborId);
+                if (neighbor && neighbor.active) {
+                  node.routingTable.set(neighborId, {
+                    nextHop: neighborId,
+                    cost: cost
+                  });
+                  console.log(`Added direct route from Node ${nodeId} to Node ${neighborId} with cost ${cost}`);
+                }
+              }
+            }
+            
+            // Log results of calculation
+            console.log(`Node ${nodeId} routing table calculated with ${node.routingTable.size} entries:`,
+              Array.from(node.routingTable.entries())
+                .map(([destId, route]) => `${destId} via ${route.nextHop} cost ${route.cost}`)
+                .join(', '));
+            
+            // Count successful calculations
+            routesCalculated += node.routingTable.size;
+          } catch (error) {
+            console.error(`Error calculating routing table for Node ${nodeId}:`, error);
+          }
         }
       }
       
-      setCurrentNodeIndex(i + 1);
+      // Final cleanup
+      setMessage(`LSP flooding complete. ${routesCalculated} routes have been calculated across all nodes.`);
+      
+      // Force a check for routing tables
+      const hasTablesNow = hasRoutingTables();
+      setRoutingTablesAvailable(hasTablesNow);
+      console.log(`After LSP flooding, routing tables available: ${hasTablesNow}`);
+      
+      // Update UI to show availability
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setMessage('');
+      
+    } finally {
+      setIsPerformingLSP(false);
+      setCurrentNodeId(null);
+      setCurrentNodeIndex(0);
+      
+      // Force a redraw of the routing tables
+      simulation.status.step += 1;
+      simulation.onSimulationStep();
     }
-    
-    // Final cleanup
-    setMessage('LSP flooding complete. All routing tables have been updated.');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setMessage('');
-    setIsPerformingLSP(false);
-    setCurrentNodeId(null);
-    setCurrentNodeIndex(0);
-    
-    // Force a redraw of the routing tables
-    simulation.status.step += 1;
-    simulation.onSimulationStep();
   };
 
   // Helper function to simulate the LSP flooding process with visualizations
@@ -268,6 +372,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     // Map of sourceNodeId => Set of nodes that processed its LSP
     const processedLSPs = new Map<number, Set<number>>();
     processedLSPs.set(sourceNodeId, new Set([sourceNodeId]));
+    
+    // Create a copy of the source node topology for consistent updates
+    const sourceNode = network.getNode(sourceNodeId);
     
     // Queue of packets to be processed
     let pendingPackets = [...initialPackets];
@@ -295,6 +402,10 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         const targetNodeId = packet.to;
         const sourceLSPNodeId = packet.data.nodeId; // The node that originated this LSP
         
+        // Skip processing for inactive nodes
+        const targetNode = network.getNode(targetNodeId);
+        if (!targetNode || !targetNode.active) continue;
+        
         // Ensure we have a set for this source node
         if (!processedLSPs.has(sourceLSPNodeId)) {
           processedLSPs.set(sourceLSPNodeId, new Set());
@@ -310,11 +421,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         // Mark this node as having processed this source's LSP
         processedNodesForSource.add(targetNodeId);
         
-        // Get the target node's neighbors
-        const targetNode = network.getNode(targetNodeId);
-        if (!targetNode || !targetNode.active) continue;
-        
-        // Update the target node's topology database
+        // Update the target node's topology database - create empty map if not exists
         if (!targetNode.topologyDatabase.has(sourceLSPNodeId)) {
           targetNode.topologyDatabase.set(sourceLSPNodeId, new Map());
         }
@@ -325,16 +432,31 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         
         // Update links in the topology database
         for (const link of links) {
-          if (!nodeLinks.has(link.nodeId) || nodeLinks.get(link.nodeId) !== link.cost) {
-            nodeLinks.set(link.nodeId, link.cost);
+          const linkNodeId = link.nodeId;
+          const linkCost = link.cost;
+          
+          // Only process links to active nodes
+          if (!network.getNode(linkNodeId)?.active) continue;
+          
+          // Update if link doesn't exist or cost changed
+          if (!nodeLinks.has(linkNodeId) || nodeLinks.get(linkNodeId) !== linkCost) {
+            nodeLinks.set(linkNodeId, linkCost);
             updatedInfo = true;
           }
+        }
+        
+        // Debugging - log updates
+        if (updatedInfo) {
+          console.log(`Node ${targetNodeId} updated topology for Node ${sourceLSPNodeId}, new links:`, 
+            Array.from(nodeLinks.entries()).map(([id, cost]) => `${id}:${cost}`).join(', '));
         }
         
         // Only flood to neighbors if this is new information
         if (updatedInfo) {
           // Flood to all neighbors except the one we received from
-          const neighborIds = Array.from(targetNode.links.keys());
+          const neighborIds = Array.from(targetNode.links.keys())
+            .filter(id => network.getNode(id)?.active); // Only consider active nodes
+            
           for (const neighborId of neighborIds) {
             // Skip the sender to avoid loops
             if (neighborId === packet.from) continue;
@@ -440,6 +562,287 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     });
   };
 
+  // Check if any routing tables exist - more thorough check
+  const hasRoutingTables = () => {
+    // First check if Hello packets have been run
+    if (!hasRunHelloPackets) {
+      return false;
+    }
+    
+    // Then check if any node has routing table entries
+    let tablesExist = false;
+    
+    // Check all nodes, not just active ones
+    for (const [nodeId, node] of network.nodes.entries()) {
+      // Only check active nodes
+      if (node.active && node.routingTable.size > 0) {
+        console.log(`Found routing table for node ${nodeId} with ${node.routingTable.size} entries`);
+        tablesExist = true;
+        break;
+      }
+    }
+    
+    // Debug info
+    if (!tablesExist) {
+      console.log('No routing tables found, button will be disabled');
+    } else {
+      console.log('Routing tables found, button will be enabled');
+    }
+    
+    return tablesExist;
+  };
+
+  // Updated path computation based on Dijkstra's algorithm
+  const computePath = (sourceId: number, destId: number, sourceNode: Node, network: Network): string => {
+    if (sourceId === destId) return `${sourceId}`;
+    
+    // If the route doesn't exist in the routing table, there's no path
+    if (!sourceNode.routingTable.has(destId)) return "No path";
+    
+    // Reconstruct the path using Dijkstra's algorithm
+    const path: number[] = [sourceId];
+    let currentNodeId = sourceId;
+    let iterations = 0;
+    const maxIterations = 20; // Prevent infinite loops
+    
+    while (currentNodeId !== destId && iterations < maxIterations) {
+      const currentNode = network.getNode(currentNodeId);
+      if (!currentNode) break;
+      
+      const nextHop = currentNode.routingTable.get(destId)?.nextHop;
+      if (!nextHop) break;
+      
+      path.push(nextHop);
+      currentNodeId = nextHop;
+      
+      // If we've reached the destination, we're done
+      if (currentNodeId === destId) break;
+      
+      iterations++;
+    }
+    
+    // Format as "A → B → C" exactly like in the image
+    return path.join(' → ');
+  };
+
+  // Check if two nodes are connected based on topology database
+  const areNodesConnected = (sourceNode: Node, destId: number): boolean => {
+    // If there's already a route in the routing table, they're connected
+    if (sourceNode.routingTable.has(destId)) {
+      return true;
+    }
+    
+    // If it's a direct neighbor, they're connected
+    if (sourceNode.links.has(destId)) {
+      return true;
+    }
+    
+    // More rigorous check using the topology database
+    // First, collect all nodes that are in the topology database
+    const allKnownNodes = new Set<number>();
+    for (const [nodeId, _] of sourceNode.topologyDatabase) {
+      allKnownNodes.add(nodeId);
+      
+      // Add all neighbors of this node
+      const links = sourceNode.topologyDatabase.get(nodeId);
+      if (links) {
+        for (const [neighborId, _] of links) {
+          allKnownNodes.add(neighborId);
+        }
+      }
+    }
+    
+    // If the destination is in the set of all known nodes, it should be reachable
+    if (allKnownNodes.has(destId)) {
+      return true;
+    }
+    
+    // If we're here, there's no known connection
+    return false;
+  };
+
+  // Function to calculate direct path and cost between nodes when routing table is incomplete
+  const calculateDirectPath = (sourceId: number, destId: number, network: Network): {path: string, cost: number} | null => {
+    // BFS to find the shortest path
+    const queue: {nodeId: number, path: number[], cost: number}[] = [{
+      nodeId: sourceId,
+      path: [sourceId],
+      cost: 0
+    }];
+    
+    const visited = new Set<number>([sourceId]);
+    
+    while (queue.length > 0) {
+      const { nodeId, path, cost } = queue.shift()!;
+      
+      // If we've reached the destination, return the path
+      if (nodeId === destId) {
+        return {
+          path: path.join(' → '),
+          cost
+        };
+      }
+      
+      // Get the current node and its links
+      const node = network.getNode(nodeId);
+      if (!node || !node.active) continue;
+      
+      // Check all links from this node
+      for (const [neighborId, linkCost] of node.links.entries()) {
+        if (visited.has(neighborId)) continue;
+        
+        const neighbor = network.getNode(neighborId);
+        if (!neighbor || !neighbor.active) continue;
+        
+        visited.add(neighborId);
+        queue.push({
+          nodeId: neighborId,
+          path: [...path, neighborId],
+          cost: cost + linkCost
+        });
+      }
+    }
+    
+    // No path found
+    return null;
+  };
+
+  // Function to handle showing the routing tables
+  const handleShowRoutingTables = () => {
+    // Double check if routing tables have been calculated
+    if (!hasRoutingTables()) {
+      // Determine what's missing
+      if (!hasRunHelloPackets) {
+        Swal.fire({
+          title: 'Error',
+          text: 'Please run Hello Packets first to discover neighbors.',
+          icon: 'error'
+        });
+      } else {
+        Swal.fire({
+          title: 'No Routing Tables',
+          text: 'Please complete LSP flooding first to generate routing tables.',
+          icon: 'warning'
+        });
+      }
+      return;
+    }
+
+    if (activeNodeIds.length === 0) {
+      Swal.fire({
+        title: 'Error',
+        text: 'No active nodes in the network. Add some nodes first.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Get the active nodes and sort them by ID for consistent display
+    const sortedNodeIds = [...activeNodeIds].sort((a, b) => a - b);
+
+    // Create the routing tables HTML
+    const tablesHTML = `
+      <div class="routing-tables-popup-container">
+        ${sortedNodeIds.map(nodeId => {
+          const node = network.getNode(nodeId);
+          if (!node) return '';
+          
+          // Get all possible destinations (all active nodes)
+          const allDestinations = [...activeNodeIds].sort((a, b) => a - b);
+          
+          return `
+            <div class="routing-table-section">
+              <h3>Node ${nodeId} Routing Table</h3>
+              <table class="routing-table-display">
+                <thead>
+                  <tr>
+                    <th>Destination</th>
+                    <th>Next Hop</th>
+                    <th>Total Cost</th>
+                    <th>Path</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${allDestinations.map(destId => {
+                    // For self, special case
+                    if (destId === nodeId) {
+                      return `
+                        <tr>
+                          <td>${destId}</td>
+                          <td>-</td>
+                          <td>0</td>
+                          <td>${destId}</td>
+                        </tr>
+                      `;
+                    }
+                    
+                    // Get route if it exists in routing table
+                    const route = node.routingTable.get(destId);
+                    
+                    if (route) {
+                      // Use the computed path
+                      const path = computePath(node.id, destId, node, network);
+                      
+                      return `
+                        <tr>
+                          <td>${destId}</td>
+                          <td>${route.nextHop}</td>
+                          <td>${route.cost}</td>
+                          <td>${path}</td>
+                        </tr>
+                      `;
+                    } else {
+                      // If not in routing table, try to calculate directly from graph
+                      const directPath = calculateDirectPath(nodeId, destId, network);
+                      
+                      if (directPath) {
+                        // Found a path through direct calculation
+                        // Determine next hop from path
+                        const pathParts = directPath.path.split(' → ');
+                        const nextHop = pathParts.length > 1 ? pathParts[1] : destId;
+                        
+                        return `
+                          <tr>
+                            <td>${destId}</td>
+                            <td>${nextHop}</td>
+                            <td>${directPath.cost}</td>
+                            <td>${directPath.path}</td>
+                          </tr>
+                        `;
+                      } else {
+                        // No path exists, show infinity
+                        return `
+                          <tr class="unreachable-route">
+                            <td>${destId}</td>
+                            <td>-</td>
+                            <td>∞</td>
+                            <td>No path available</td>
+                          </tr>
+                        `;
+                      }
+                    }
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Show the popup with the routing tables
+    Swal.fire({
+      title: 'Routing Tables after LSP Flooding',
+      html: tablesHTML,
+      width: '80%',
+      customClass: {
+        container: 'network-topology-popup', // Use the same class as network topology
+        popup: 'network-topology-popup-content',
+        htmlContainer: 'network-topology-popup-html'
+      }
+    });
+  };
+
   return (
     <div className="control-group">
       <h2>Simulation Controls</h2>
@@ -484,6 +887,17 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           disabled={!hasRunHelloPackets}
         >
           Show Network Topology
+        </button>
+      </div>
+
+      {/* Toggle button for showing routing tables */}
+      <div className="input-group">
+        <button 
+          className={`toggle-button ${routingTablesAvailable ? 'routing-tables-ready' : ''}`}
+          onClick={() => handleShowRoutingTables()}
+          disabled={!routingTablesAvailable}
+        >
+          Show Routing Tables
         </button>
       </div>
       
