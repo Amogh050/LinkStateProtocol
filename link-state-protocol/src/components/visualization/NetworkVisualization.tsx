@@ -405,7 +405,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     mesh.userData.fromPos = start;
     mesh.userData.toPos = end;
     mesh.userData.progress = 0;
-    mesh.userData.speed = packet.type === 'HELLO' ? 0.04 : 0.02; // Faster speed for HELLO packets
+    mesh.userData.speed = packet.type === 'HELLO' ? 0.02 : 0.02; // Slower speed for HELLO packets
     mesh.userData.packet = packet;
 
     // Add pulsing animation data

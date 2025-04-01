@@ -52,13 +52,16 @@ function App() {
 
   // Improved network update handler
   const handleNetworkUpdate = useCallback(() => {
+    // Clear any existing packets
+    network.packets = [];
+    
     // Increment update counter to force re-render
     setUpdateCounter(counter => counter + 1);
     
-    // Update simulation state
+    // Update simulation state with empty packets
     setSimulationState(prevState => ({
       ...prevState,
-      packets: [...network.packets]
+      packets: []
     }));
     
     console.log('Network updated, triggering re-render');

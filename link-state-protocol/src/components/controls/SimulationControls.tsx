@@ -119,17 +119,10 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       setCurrentNodeId(nodeId);
       setMessage(`Starting hello packet animation for Node ${nodeId}...`);
 
-      // Wait a moment before sending packets
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       // Send hello packets for the current node
       network.simulateNodeHelloPackets(nodeId);
       simulation.sendHelloPackets(nodeId);
-      
-      // Wait for the packets to reach their destinations
-      const animationTime = 1000; // 3 seconds for packet travel animation
-      await new Promise(resolve => setTimeout(resolve, animationTime));
-      
+
       // Get and display node's neighbors
       const nodeNeighbors = network.getNodeNeighbors(nodeId);
       
@@ -155,7 +148,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
       
       // Wait for user to see the neighbor table
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      await new Promise(resolve => setTimeout(resolve, 1300));
       
       // Hide the neighbor table before moving to the next node
       setShowNeighborTable(false);
