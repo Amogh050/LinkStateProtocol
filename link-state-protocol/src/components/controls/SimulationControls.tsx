@@ -24,6 +24,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [activeNodeIds, setActiveNodeIds] = useState<number[]>([]);
   const [isPerformingLSP, setIsPerformingLSP] = useState(false);
   const [routingTablesAvailable, setRoutingTablesAvailable] = useState(false);
+  const [showPopup, setShowPopup] = useState<boolean>(false);
 
   // Function to get active node IDs
   const getActiveNodeIds = useCallback(() => {
@@ -101,6 +102,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     // Reset the state
     setAllNodeNeighbors(new Map());
     setHasRunHelloPackets(false);
+    setShowPopup(true);
 
     // Get all active node IDs
     const nodeIds = getActiveNodeIds();
@@ -132,7 +134,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       );
       
       setNeighbors(filteredNeighbors);
-      setShowNeighborTable(true);
+      // setShowNeighborTable(true);
       
       // Update the allNodeNeighbors map
       setAllNodeNeighbors(prev => {
@@ -164,6 +166,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     setCurrentNodeIndex(0);
     setHasRunHelloPackets(true); // Mark that hello packets have been run
     cleanupDeletedNodes(); // Make sure we clean up any deleted nodes
+    setShowPopup(false); // Hide the popup
   };
 
   const handlePerformLSPFlooding = async () => {
@@ -1026,6 +1029,32 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           )}
         </div>
       )}
+
+      {/* Neighbor table popup */}
+      <div className={`neighbor-table-popup ${showPopup ? 'show' : 'hide'}`}>
+        <h3>Neighbor Table</h3>
+        {currentNodeId && (
+          <div>
+            <p>Node {currentNodeId}</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Neighbor ID</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {neighbors.map((neighbor) => (
+                  <tr key={neighbor.neighborId}>
+                    <td>{neighbor.neighborId}</td>
+                    <td>{neighbor.cost}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
