@@ -959,46 +959,48 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         <div className="all-tables-container">
           <h3>All Nodes' Neighbor Tables</h3>
           {hasRunHelloPackets ? (
-            activeNodeIds.length > 0 ? (
-              activeNodeIds.map(nodeId => {
-                // Only show nodes that actually exist
-                if (!network.getNode(nodeId)) return null;
-                
-                const nodeNeighbors = allNodeNeighbors.get(nodeId) || [];
-                
-                // Filter out any deleted neighbors
-                const existingNeighbors = nodeNeighbors.filter(
-                  neighbor => network.getNode(neighbor.neighborId) !== undefined
-                );
-                
-                return (
-                  <div key={nodeId} className="node-table-container">
-                    <h4>Node {nodeId}</h4>
-                    {existingNeighbors.length > 0 ? (
-                      <table className="node-neighbors-table">
-                        <thead>
-                          <tr>
-                            <th>Neighbor ID</th>
-                            <th>Link Cost</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {existingNeighbors.map(neighbor => (
-                            <tr key={neighbor.neighborId}>
-                              <td>Node {neighbor.neighborId}</td>
-                              <td>{neighbor.cost}</td>
+            Array.from(network.nodes.keys()).length > 0 ? (
+              Array.from(network.nodes.keys())
+                .sort((a, b) => a - b)
+                .map(nodeId => {
+                  const node = network.getNode(nodeId);
+                  if (!node) return null;
+                  
+                  const nodeNeighbors = network.getNodeNeighbors(nodeId);
+                  
+                  // Filter out any deleted neighbors
+                  const existingNeighbors = nodeNeighbors.filter(
+                    neighbor => network.getNode(neighbor.neighborId) !== undefined
+                  );
+                  
+                  return (
+                    <div key={nodeId} className="node-table-container">
+                      <h4>Node {nodeId}</h4>
+                      {existingNeighbors.length > 0 ? (
+                        <table className="node-neighbors-table">
+                          <thead>
+                            <tr>
+                              <th>Neighbor ID</th>
+                              <th>Link Cost</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p>No neighbors discovered</p>
-                    )}
-                  </div>
-                );
-              }).filter(Boolean) // Filter out nulls
+                          </thead>
+                          <tbody>
+                            {existingNeighbors.map(neighbor => (
+                              <tr key={neighbor.neighborId}>
+                                <td>Node {neighbor.neighborId}</td>
+                                <td>{neighbor.cost}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p>No neighbors discovered</p>
+                      )}
+                    </div>
+                  );
+                }).filter(Boolean) // Filter out nulls
             ) : (
-              <p>No active nodes in the network. Add some nodes first.</p>
+              <p>No nodes in the network. Add some nodes first.</p>
             )
           ) : (
             <p>Please run the hello packets simulation to discover neighbors.</p>
