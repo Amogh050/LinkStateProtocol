@@ -522,28 +522,26 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
             </tr>
           </thead>
           <tbody>
-            ${activeNodeIds.map(nodeId => {
-              const node = network.getNode(nodeId);
-              if (!node) return '';
+            ${Array.from(network.nodes.entries())
+              .filter(([_, node]) => node.active)
+              .sort(([a], [b]) => a - b)
+              .map(([nodeId, node]) => {
+                // Get all neighbors from topology database
+                const nodeTopology = node.topologyDatabase.get(nodeId);
+                if (!nodeTopology) return '';
 
-              // Get all neighbors from topology database
-              const nodeTopology = node.topologyDatabase.get(nodeId);
-              if (!nodeTopology) return '';
+                const neighborsList = Array.from(nodeTopology.entries())
+                  .filter(([neighborId]) => network.getNode(neighborId)?.active) // Only show active neighbors
+                  .map(([neighborId, cost]) => `Node ${neighborId} (cost ${cost})`)
+                  .join(', ');
 
-              const neighborsList = Array.from(nodeTopology.entries())
-                .map(([neighborId, cost]) => `Node ${neighborId} (cost ${cost})`)
-                .join(', ');
-
-              // Get sequence number (you may need to add this to your Node class)
-              const sequenceNumber = node.lsp.sequenceNumber || '-';
-              
-              return `
-                <tr>
-                  <td>Node ${nodeId}</td>
-                  <td>${neighborsList || 'No neighbors'}</td>
-                </tr>
-              `;
-            }).join('')}
+                return `
+                  <tr>
+                    <td>Node ${nodeId}</td>
+                    <td>${neighborsList || 'No neighbors'}</td>
+                  </tr>
+                `;
+              }).join('')}
           </tbody>
         </table>
       </div>
@@ -728,7 +726,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       return;
     }
 
-    if (activeNodeIds.length === 0) {
+    // Get all active nodes from the network
+    const activeNodes = Array.from(network.nodes.entries())
+      .filter(([_, node]) => node.active)
+      .sort(([a], [b]) => a - b);
+
+    if (activeNodes.length === 0) {
       Swal.fire({
         title: 'Error',
         text: 'No active nodes in the network. Add some nodes first.',
@@ -737,18 +740,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       return;
     }
 
-    // Get the active nodes and sort them by ID for consistent display
-    const sortedNodeIds = [...activeNodeIds].sort((a, b) => a - b);
-
     // Create the routing tables HTML
     const tablesHTML = `
       <div class="routing-tables-popup-container">
-        ${sortedNodeIds.map(nodeId => {
-          const node = network.getNode(nodeId);
-          if (!node) return '';
-          
+        ${activeNodes.map(([nodeId, node]) => {
           // Get all possible destinations (all active nodes)
-          const allDestinations = [...activeNodeIds].sort((a, b) => a - b);
+          const allDestinations = activeNodes.map(([id]) => id).sort((a, b) => a - b);
           
           return `
             <div class="routing-table-section">
@@ -836,7 +833,89 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       html: tablesHTML,
       width: '80%',
       customClass: {
-        container: 'network-topology-popup', // Use the same class as network topology
+        container: 'network-topology-popup',
+        popup: 'network-topology-popup-content',
+        htmlContainer: 'network-topology-popup-html'
+      }
+    });
+  };
+
+  const handleShowNeighborTables = () => {
+    if (!hasRunHelloPackets) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Please run Hello Packets first to discover neighbors.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Get all active nodes from the network
+    const activeNodes = Array.from(network.nodes.entries())
+      .filter(([_, node]) => node.active)
+      .sort(([a], [b]) => a - b);
+
+    if (activeNodes.length === 0) {
+      Swal.fire({
+        title: 'Error',
+        text: 'No active nodes in the network. Add some nodes first.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Create the neighbor tables HTML
+    const tablesHTML = `
+      <div class="routing-tables-popup-container">
+        ${activeNodes.map(([nodeId, node]) => {
+          const nodeNeighbors = network.getNodeNeighbors(nodeId);
+          
+          // Filter out any deleted neighbors and sort by ID
+          const existingNeighbors = nodeNeighbors
+            .filter(neighbor => network.getNode(neighbor.neighborId)?.active)
+            .sort((a, b) => a.neighborId - b.neighborId);
+          
+          return `
+            <div class="routing-table-section">
+              <h3>Node ${nodeId} Neighbor Table</h3>
+              <table class="routing-table-display">
+                <thead>
+                  <tr>
+                    <th>Neighbor ID</th>
+                    <th>Link Cost</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${existingNeighbors.length > 0 ? 
+                    existingNeighbors.map(neighbor => {
+                      const neighborNode = network.getNode(neighbor.neighborId);
+                      const isActive = neighborNode?.active;
+                      return `
+                        <tr>
+                          <td>Node ${neighbor.neighborId}</td>
+                          <td>${neighbor.cost}</td>
+                          <td>${isActive ? 'Active' : 'Inactive'}</td>
+                        </tr>
+                      `;
+                    }).join('') :
+                    '<tr><td colspan="4" style="text-align: center;">No neighbors discovered</td></tr>'
+                  }
+                </tbody>
+              </table>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Show the popup with the neighbor tables
+    Swal.fire({
+      title: 'Neighbor Tables after Hello Packets',
+      html: tablesHTML,
+      width: '80%',
+      customClass: {
+        container: 'network-topology-popup',
         popup: 'network-topology-popup-content',
         htmlContainer: 'network-topology-popup-html'
       }
@@ -869,13 +948,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         </button>
       </div>
 
-      {/* Toggle button for showing all tables */}
+      {/* Button for showing neighbor tables */}
       <div className="input-group">
         <button 
           className="toggle-button"
-          onClick={() => setShowAllTables(prev => !prev)}
+          onClick={handleShowNeighborTables}
+          disabled={!hasRunHelloPackets}
         >
-          {showAllTables ? 'Hide Neighbouring Tables' : 'See Neighbouring Tables'}
+          Show Neighbor Tables
         </button>
       </div>
 
@@ -950,60 +1030,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
                 <p>No neighbors discovered</p>
               )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* All nodes' neighbor tables */}
-      {showAllTables && (
-        <div className="all-tables-container">
-          <h3>All Nodes' Neighbor Tables</h3>
-          {hasRunHelloPackets ? (
-            Array.from(network.nodes.keys()).length > 0 ? (
-              Array.from(network.nodes.keys())
-                .sort((a, b) => a - b)
-                .map(nodeId => {
-                  const node = network.getNode(nodeId);
-                  if (!node) return null;
-                  
-                  const nodeNeighbors = network.getNodeNeighbors(nodeId);
-                  
-                  // Filter out any deleted neighbors
-                  const existingNeighbors = nodeNeighbors.filter(
-                    neighbor => network.getNode(neighbor.neighborId) !== undefined
-                  );
-                  
-                  return (
-                    <div key={nodeId} className="node-table-container">
-                      <h4>Node {nodeId}</h4>
-                      {existingNeighbors.length > 0 ? (
-                        <table className="node-neighbors-table">
-                          <thead>
-                            <tr>
-                              <th>Neighbor ID</th>
-                              <th>Link Cost</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {existingNeighbors.map(neighbor => (
-                              <tr key={neighbor.neighborId}>
-                                <td>Node {neighbor.neighborId}</td>
-                                <td>{neighbor.cost}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <p>No neighbors discovered</p>
-                      )}
-                    </div>
-                  );
-                }).filter(Boolean) // Filter out nulls
-            ) : (
-              <p>No nodes in the network. Add some nodes first.</p>
-            )
-          ) : (
-            <p>Please run the hello packets simulation to discover neighbors.</p>
           )}
         </div>
       )}
