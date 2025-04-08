@@ -1,3 +1,10 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #1a1a1a;
+  overflow: hidden;
+}
+
 /* Main Layout */
 .App {
   width: 100%;
@@ -6,6 +13,7 @@
   flex-direction: column;
   overflow: hidden;
   font-size: 1.4rem; /* Base font size increase */
+  background-color: #1a1a1a;
 }
 
 .App-header {
@@ -26,6 +34,8 @@
   overflow: hidden;
   height: calc(100vh - 60px); /* Subtract header height */
   flex-direction: row-reverse; /* Add this to reverse the order */
+  padding-bottom: 70px;
+  background-color: #1a1a1a;
 }
 
 .sidebar {
@@ -929,4 +939,102 @@ h3 {
 .lsp-message-popup.hide {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.8);
-} 
+}
+
+/* App Footer */
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  min-width: fit-content;
+  background-color: #1a1a1a;
+  padding: 0.8rem 1.5rem;
+  z-index: 100;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(68, 68, 68, 0.3);
+  transform: translateX(-50%);
+  left: 50%;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Footer Controls Layout */
+.app-footer .control-group {
+  background-color: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  width: fit-content;
+}
+
+.app-footer .input-group {
+  flex: 0 0 auto;
+  margin: 0;
+  width: auto;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.app-footer button {
+  margin-bottom: 0;
+  white-space: nowrap;
+  border: none;
+}
+
+.app-footer .hello-button,
+.app-footer .lsp-button,
+.app-footer .toggle-button {
+  min-width: 180px;
+  padding: 0.8rem 1.2rem;
+  margin: 0;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Animation message in footer */
+.app-footer .animation-message {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 300px;
+  margin: 0;
+  padding: 0.8rem 1.5rem;
+  background-color: rgba(51, 51, 51, 0.9);
+  border-radius: 8px 8px 0 0;
+  border: none;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+/* Current node indicator in footer */
+.app-footer .current-node {
+  position: absolute;
+  top: -40px;
+  right: 20px;
+  background-color: rgba(51, 51, 51, 0.9);
+  border-radius: 8px 8px 0 0;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  border: none;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Animation for footer message */
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}

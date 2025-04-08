@@ -897,8 +897,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
 
   return (
     <div className="control-group">
-      <h2>Simulation Controls</h2>
-      
       {/* Hello packets button */}
       <div className="input-group">
         <button 
@@ -906,7 +904,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           onClick={handleSendHelloPackets}
           disabled={isAnimating || isPerformingLSP}
         >
-          {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
+          {isAnimating ? 'Sending Hello...' : 'Send Hello Packets'}
         </button>
       </div>
 
@@ -915,9 +913,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         <button 
           className="lsp-button"
           onClick={handlePerformLSPFlooding}
-          disabled={isAnimating || isPerformingLSP}
+          disabled={isAnimating || isPerformingLSP || !hasRunHelloPackets}
         >
-          {isPerformingLSP ? 'LSP Flooding in Progress...' : 'Start LSP Flooding'}
+          {isPerformingLSP ? 'LSP Flooding...' : 'Start LSP Flooding'}
         </button>
       </div>
 
@@ -928,7 +926,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           onClick={handleShowNeighborTables}
           disabled={!hasRunHelloPackets}
         >
-          Show Neighbor Tables
+          Show Neighbors
         </button>
       </div>
 
@@ -939,7 +937,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           onClick={() => handleShowNetworkTopology()}
           disabled={!routingTablesAvailable}
         >
-          Show Network Topology
+          Show Topology
         </button>
       </div>
 
@@ -950,18 +948,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
           onClick={() => handleShowRoutingTables()}
           disabled={!routingTablesAvailable}
         >
-          Show Routing Tables
+          Show Routes
         </button>
       </div>
-      
-      {/* Animation progress */}
-      {(isAnimating || isPerformingLSP) && (
-        <div className="animation-progress">
-          <div className="progress-bar">
-            <div className="progress-fill"></div>
-          </div>
-        </div>
-      )}
       
       {/* Animation message */}
       {message && (
@@ -975,35 +964,8 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         <div className="current-node">
           <div className="node-indicator">
             <span className="node-dot"></span>
-            <span>Current Node: {currentNodeId}</span>
+            <span>Current: Node {currentNodeId}</span>
           </div>
-          
-          {/* Node neighbors table */}
-          {showNeighborTable && (
-            <div className="node-neighbors-table-container">
-              <h3>Discovered Neighbors</h3>
-              {neighbors.length > 0 ? (
-                <table className="node-neighbors-table">
-                  <thead>
-                    <tr>
-                      <th>Neighbor ID</th>
-                      <th>Link Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {neighbors.map(neighbor => (
-                      <tr key={neighbor.neighborId}>
-                        <td>Node {neighbor.neighborId}</td>
-                        <td>{neighbor.cost}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No neighbors discovered</p>
-              )}
-            </div>
-          )}
         </div>
       )}
 

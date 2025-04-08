@@ -52,16 +52,13 @@ function App() {
 
   // Improved network update handler
   const handleNetworkUpdate = useCallback(() => {
-    // Clear any existing packets
-    network.packets = [];
-    
     // Increment update counter to force re-render
     setUpdateCounter(counter => counter + 1);
     
-    // Update simulation state with empty packets
+    // Update simulation state
     setSimulationState(prevState => ({
       ...prevState,
-      packets: []
+      packets: [...network.packets]
     }));
     
     console.log('Network updated, triggering re-render');
@@ -77,7 +74,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
+    <div className="App bg-black">
       <header className="App-header">
         <h1>Link-State Routing Protocol Visualization</h1>
       </header>
@@ -87,11 +84,6 @@ function App() {
           <NetworkControls 
             network={network} 
             onNetworkUpdate={handleNetworkUpdate} 
-          />
-          
-          <SimulationControls 
-            simulation={simulationState.simulation} 
-            network={network}
           />
         </div>
         
@@ -103,6 +95,13 @@ function App() {
           />
         </div>
       </div>
+      
+      <footer className="app-footer">
+        <SimulationControls 
+          simulation={simulationState.simulation} 
+          network={network}
+        />
+      </footer>
     </div>
   );
 }
