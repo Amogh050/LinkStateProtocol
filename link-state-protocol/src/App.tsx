@@ -74,7 +74,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App bg-black">
+    <div className="App">
       <header className="App-header">
         <h1>Link-State Routing Protocol Visualization</h1>
       </header>
@@ -93,15 +93,14 @@ function App() {
             packets={simulationState.packets}
             key={`network-vis-${updateCounter}`} 
           />
+          <footer className="app-footer">
+            <SimulationControls 
+              simulation={simulationState.simulation} 
+              network={network}
+            />
+          </footer>
         </div>
       </div>
-      
-      <footer className="app-footer">
-        <SimulationControls 
-          simulation={simulationState.simulation} 
-          network={network}
-        />
-      </footer>
     </div>
   );
 }

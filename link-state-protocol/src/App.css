@@ -943,19 +943,18 @@ h3 {
 
 /* App Footer */
 .app-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   width: auto;
   min-width: fit-content;
   background-color: #1a1a1a;
   padding: 0.8rem 1.5rem;
   z-index: 100;
-  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);
-  border-top: 1px solid rgba(68, 68, 68, 0.3);
-  transform: translateX(-50%);
-  left: 50%;
-  border-radius: 8px 8px 0 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(68, 68, 68, 0.3);
+  border-radius: 8px;
 }
 
 /* Footer Controls Layout */
