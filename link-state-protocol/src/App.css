@@ -832,33 +832,34 @@ h3 {
   left: 60%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.9);
+  background-color: rgba(0, 0, 0, 0.3);
   border: 2px solid #4a90e2;
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px;
   color: white;
-  min-width: 300px;
-  max-width: 400px;
+  min-width: 250px;
+  max-width: 350px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   transition: all 0.3s ease;
 }
 
 .neighbor-table-popup h3 {
-  margin: 0 0 15px 0;
+  margin: 0 0 10px 0;
   color: #4a90e2;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .neighbor-table-popup table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
+  margin-top: 8px;
+  font-size: 0.9rem;
 }
 
 .neighbor-table-popup th,
 .neighbor-table-popup td {
-  padding: 8px;
+  padding: 6px;
   text-align: left;
   border-bottom: 1px solid rgba(74, 144, 226, 0.3);
 }
@@ -866,6 +867,7 @@ h3 {
 .neighbor-table-popup th {
   color: #4a90e2;
   font-weight: bold;
+  font-size: 0.9rem;
 }
 
 .neighbor-table-popup tr:hover {
@@ -878,6 +880,53 @@ h3 {
 }
 
 .neighbor-table-popup.hide {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+/* LSP message popup */
+.lsp-message-popup {
+  position: fixed;
+  left: 60%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 2px solid #4a90e2;
+  border-radius: 8px;
+  padding: 15px;
+  color: white;
+  min-width: 250px;
+  max-width: 350px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.lsp-message-popup h3 {
+  margin: 0 0 10px 0;
+  color: #4a90e2;
+  font-size: 1rem;
+}
+
+.lsp-message-popup .message-content {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.lsp-message-popup .round-info {
+  color: #97ff8b;
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.lsp-message-popup.show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.lsp-message-popup.hide {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.8);
 } 

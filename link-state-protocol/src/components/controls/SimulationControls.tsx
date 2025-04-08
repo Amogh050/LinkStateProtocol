@@ -25,6 +25,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [isPerformingLSP, setIsPerformingLSP] = useState(false);
   const [routingTablesAvailable, setRoutingTablesAvailable] = useState(false);
   const [showPopup, setShowPopup] = useState<boolean>(false);
+  const [showLSPPopup, setShowLSPPopup] = useState<boolean>(false);
+  const [lspMessage, setLSPMessage] = useState<string>('');
+  const [lspRoundInfo, setLSPRoundInfo] = useState<string>('');
 
   // Function to get active node IDs
   const getActiveNodeIds = useCallback(() => {
@@ -194,6 +197,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
 
     setIsPerformingLSP(true);
     setCurrentNodeIndex(0);
+    setShowLSPPopup(true);
 
     try {
       // Clear all existing routing tables first
@@ -218,7 +222,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
 
       // Initial LSP message
-      setMessage('Starting LSP flooding process...');
+      setLSPMessage('Starting LSP flooding process...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Track all processed nodes for final routing table calculation
@@ -234,7 +238,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         
         // If no neighbors, skip this node
         if (nodeNeighbors.length === 0) {
-          setMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
+          setLSPMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
           await new Promise(resolve => setTimeout(resolve, 1500));
           continue;
         }
@@ -260,7 +264,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         }
         
         // Start directly with flooding simulation
-        setMessage(`Starting LSP flooding from Node ${nodeId}...`);
+        setLSPMessage(`Starting LSP flooding from Node ${nodeId}...`);
         
         // Simulate the flooding with the initial packets
         const processedNodes = await simulateLSPFlooding(nodeId, initialPackets);
@@ -268,14 +272,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         // Add all processed nodes to the global set
         processedNodes.forEach(node => allProcessedNodes.add(node));
         
-        setMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
+        setLSPMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         setCurrentNodeIndex(i + 1);
       }
       
       // Update routing tables for all affected nodes
-      setMessage('Calculating final routing tables for all nodes...');
+      setLSPMessage('Calculating final routing tables for all nodes...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Verify each node has a complete topology database
@@ -298,12 +302,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
               node.topologyDatabase.set(node.id, nodeLinks);
             }
             
-            // Log topology database before calculation
-            console.log(`Node ${nodeId} topology database:`, 
-              Array.from(node.topologyDatabase.entries())
-                .map(([sourceId, links]) => `${sourceId} -> ${Array.from(links.entries()).length} links`)
-                .join(', '));
-            
             // Calculate routing table
             node.calculateRoutingTable();
             
@@ -325,12 +323,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
               }
             }
             
-            // Log results of calculation
-            console.log(`Node ${nodeId} routing table calculated with ${node.routingTable.size} entries:`,
-              Array.from(node.routingTable.entries())
-                .map(([destId, route]) => `${destId} via ${route.nextHop} cost ${route.cost}`)
-                .join(', '));
-            
             // Count successful calculations
             routesCalculated += node.routingTable.size;
           } catch (error) {
@@ -340,7 +332,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
       
       // Final cleanup
-      setMessage(`LSP flooding complete. ${routesCalculated} routes have been calculated across all nodes.`);
+      setLSPMessage(`LSP flooding complete. ${routesCalculated} routes have been calculated across all nodes.`);
       
       // Force a check for routing tables
       const hasTablesNow = hasRoutingTables();
@@ -349,12 +341,13 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       
       // Update UI to show availability
       await new Promise(resolve => setTimeout(resolve, 2000));
-      setMessage('');
+      setLSPMessage('');
       
     } finally {
       setIsPerformingLSP(false);
       setCurrentNodeId(null);
       setCurrentNodeIndex(0);
+      setShowLSPPopup(false);
       
       // Force a redraw of the routing tables
       simulation.status.step += 1;
@@ -378,7 +371,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     
     // Process packets until queue is empty
     while (pendingPackets.length > 0) {
-      setMessage(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
+      setLSPRoundInfo(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
       
       // Clear any existing packets
       network.packets = [];
@@ -393,58 +386,42 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Collect new packets to be sent in the next round
       const nextRoundPackets: Packet[] = [];
       
-      // Process each packet
+      // Process each packet in the current round
       for (const packet of pendingPackets) {
         const targetNodeId = packet.to;
-        const sourceLSPNodeId = packet.data.nodeId; // The node that originated this LSP
-        
-        // Skip processing for inactive nodes
         const targetNode = network.getNode(targetNodeId);
+        
         if (!targetNode || !targetNode.active) continue;
         
-        // Ensure we have a set for this source node
-        if (!processedLSPs.has(sourceLSPNodeId)) {
-          processedLSPs.set(sourceLSPNodeId, new Set());
+        // Get or create the set of processed nodes for this source
+        let processedNodesForSource = processedLSPs.get(sourceNodeId);
+        if (!processedNodesForSource) {
+          processedNodesForSource = new Set();
+          processedLSPs.set(sourceNodeId, processedNodesForSource);
         }
         
-        const processedNodesForSource = processedLSPs.get(sourceLSPNodeId)!;
-        
-        // Skip if this target node already processed this source's LSP
-        if (processedNodesForSource.has(targetNodeId)) {
-          continue;
-        }
+        // Skip if this node already processed this source's LSP
+        if (processedNodesForSource.has(targetNodeId)) continue;
         
         // Mark this node as having processed this source's LSP
         processedNodesForSource.add(targetNodeId);
         
-        // Update the target node's topology database - create empty map if not exists
-        if (!targetNode.topologyDatabase.has(sourceLSPNodeId)) {
-          targetNode.topologyDatabase.set(sourceLSPNodeId, new Map());
+        // Update topology database
+        const sourceLSPNodeId = packet.data.nodeId;
+        let nodeLinks = targetNode.topologyDatabase.get(sourceLSPNodeId);
+        
+        if (!nodeLinks) {
+          nodeLinks = new Map<number, number>();
+          targetNode.topologyDatabase.set(sourceLSPNodeId, nodeLinks);
         }
         
-        const links = packet.data.links;
-        const nodeLinks = targetNode.topologyDatabase.get(sourceLSPNodeId)!;
+        // Check if we need to update any links
         let updatedInfo = false;
-        
-        // Update links in the topology database
-        for (const link of links) {
-          const linkNodeId = link.nodeId;
-          const linkCost = link.cost;
-          
-          // Only process links to active nodes
-          if (!network.getNode(linkNodeId)?.active) continue;
-          
-          // Update if link doesn't exist or cost changed
-          if (!nodeLinks.has(linkNodeId) || nodeLinks.get(linkNodeId) !== linkCost) {
-            nodeLinks.set(linkNodeId, linkCost);
+        for (const link of packet.data.links) {
+          if (!nodeLinks.has(link.nodeId) || nodeLinks.get(link.nodeId) !== link.cost) {
+            nodeLinks.set(link.nodeId, link.cost);
             updatedInfo = true;
           }
-        }
-        
-        // Debugging - log updates
-        if (updatedInfo) {
-          console.log(`Node ${targetNodeId} updated topology for Node ${sourceLSPNodeId}, new links:`, 
-            Array.from(nodeLinks.entries()).map(([id, cost]) => `${id}:${cost}`).join(', '));
         }
         
         // Only flood to neighbors if this is new information
@@ -478,7 +455,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Safety check to prevent infinite loops
       if (round > 15 || nextRoundPackets.length === 0) {
         if (round > 15) {
-          setMessage('LSP flooding terminated - maximum rounds reached');
+          setLSPMessage('LSP flooding terminated - maximum rounds reached');
         }
         break;
       }
@@ -1054,6 +1031,13 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
             </table>
           </div>
         )}
+      </div>
+
+      {/* LSP message popup */}
+      <div className={`lsp-message-popup ${showLSPPopup ? 'show' : 'hide'}`}>
+        <h3>LSP Flooding Status</h3>
+        {lspRoundInfo && <div className="round-info">{lspRoundInfo}</div>}
+        {lspMessage && <div className="message-content">{lspMessage}</div>}
       </div>
     </div>
   );

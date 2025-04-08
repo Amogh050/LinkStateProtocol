@@ -23,8 +23,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   const controlsRef = useRef<OrbitControls | null>(null);
   const nodeObjectsRef = useRef<Map<number, THREE.Mesh>>(new Map());
   const linkObjectsRef = useRef<Map<string, LinkObject>>(new Map());
-  const packetObjectsRef = useRef<Map<number, THREE.Mesh>>(new Map());
   const packetIdRef = useRef<number>(0);
+  const packetObjectsRef = useRef<Map<number, THREE.Object3D>>(new Map());
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
   
@@ -368,29 +368,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
     if (!fromNode || !toNode) return null;
 
-    // Create a simple sphere with enhanced glow
-    const geometry = new THREE.SphereGeometry(0.15, 16, 16); // Slightly smaller core sphere
-    const material = new THREE.MeshPhongMaterial({
-      color: 0xff0000,  // Red color
-      emissive: 0xff0000,  // Stronger red glow
-      emissiveIntensity: 0.5,  // Increased glow intensity
-      shininess: 80
-    });
-    
-    const mesh = new THREE.Mesh(geometry, material);
+    // Create a group to hold the packet and its text
+    const packetGroup = new THREE.Group();
 
-    // Add glow effect using a larger transparent sphere
-    const glowGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.15,
-      side: THREE.BackSide
-    });
-    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-    mesh.add(glowMesh);
-
-    // Calculate path for packet movement
+    // Calculate path for packet movement first
     const start = new THREE.Vector3(fromNode.position.x, fromNode.position.y, fromNode.position.z);
     const end = new THREE.Vector3(toNode.position.x, toNode.position.y, toNode.position.z);
     const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
@@ -398,23 +379,73 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
     midPoint.y += distance * 0.15; // Slight curve upward
     
     const curve = new THREE.QuadraticBezierCurve3(start, midPoint, end);
+
+    // Create a simple sphere with enhanced glow
+    const geometry = new THREE.SphereGeometry(0.25, 16, 16);
+    const material = new THREE.MeshPhongMaterial({
+      color: packet.type === 'HELLO' ? 0x9c27b0 : 0xff0000,
+      emissive: packet.type === 'HELLO' ? 0x9c27b0 : 0xff0000,
+      emissiveIntensity: 0.5,
+      shininess: 80
+    });
+    
+    const mesh = new THREE.Mesh(geometry, material);
+
+    // Add glow effect using a larger transparent sphere
+    const glowGeometry = new THREE.SphereGeometry(0.35, 16, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: packet.type === 'HELLO' ? 0x9c27b0 : 0xff0000,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.BackSide
+    });
+    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+    mesh.add(glowMesh);
+
+    // Add text for HELLO packets
+    if (packet.type === 'HELLO') {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (context) {
+        canvas.width = 128;
+        canvas.height = 64;
+        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.font = 'bold 24px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText('HELLO', canvas.width / 2, canvas.height / 2);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const textGeometry = new THREE.PlaneGeometry(0.3, 0.15);
+      const textMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.position.y = 0.2;
+      packetGroup.add(textMesh);
+    }
+
+    // Store animation data
     mesh.userData.curve = curve;
-    mesh.position.copy(start);
-
-    // Store animation data with faster speed
-    mesh.userData.fromPos = start;
-    mesh.userData.toPos = end;
     mesh.userData.progress = 0;
-    mesh.userData.speed = packet.type === 'HELLO' ? 0.02 : 0.02; // Slower speed for HELLO packets
+    mesh.userData.speed = packet.type === 'HELLO' ? 0.02 : 0.02;
     mesh.userData.packet = packet;
-
-    // Add pulsing animation data
     mesh.userData.pulseTime = 0;
 
-    sceneRef.current.add(mesh);
+    // Set initial position
+    const initialPosition = curve.getPoint(0);
+    packetGroup.position.copy(initialPosition);
+    packetGroup.add(mesh);
+
+    sceneRef.current.add(packetGroup);
 
     const packetId = packetIdRef.current++;
-    packetObjectsRef.current.set(packetId, mesh);
+    packetObjectsRef.current.set(packetId, packetGroup);
 
     return packetId;
   };
@@ -422,18 +453,22 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   const updatePackets = () => {
     if (!sceneRef.current) return;
 
-    for (const [packetId, packetObject] of packetObjectsRef.current.entries()) {
-      const userData = packetObject.userData;
+    for (const [packetId, packetGroup] of packetObjectsRef.current.entries()) {
+      // Get the mesh from the group
+      const mesh = packetGroup.children.find(child => child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry) as THREE.Mesh;
+      if (!mesh) continue;
+
+      const userData = mesh.userData;
       userData.progress += userData.speed;
       
       if (userData.progress >= 1) {
         // Packet reached destination
-        sceneRef.current.remove(packetObject);
+        sceneRef.current.remove(packetGroup);
         packetObjectsRef.current.delete(packetId);
       } else {
         // Update packet position along curve
         const position = userData.curve.getPoint(userData.progress);
-        packetObject.position.copy(position);
+        packetGroup.position.copy(position);
       }
     }
   };
