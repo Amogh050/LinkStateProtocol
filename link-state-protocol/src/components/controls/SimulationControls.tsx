@@ -26,8 +26,15 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   const [routingTablesAvailable, setRoutingTablesAvailable] = useState(false);
   const [showPopup, setShowPopup] = useState<boolean>(false);
   const [showLSPPopup, setShowLSPPopup] = useState<boolean>(false);
-  const [lspMessage, setLSPMessage] = useState<string>('');
-  const [lspRoundInfo, setLSPRoundInfo] = useState<string>('');
+  const [lspInfo, setLSPInfo] = useState<{
+    sourceNodeId: number | null;
+    round: number;
+    packetsCount: number;
+  }>({
+    sourceNodeId: null,
+    round: 0,
+    packetsCount: 0
+  });
 
   // Function to get active node IDs
   const getActiveNodeIds = useCallback(() => {
@@ -197,7 +204,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
 
     setIsPerformingLSP(true);
     setCurrentNodeIndex(0);
-    setShowLSPPopup(true);
 
     try {
       // Clear all existing routing tables first
@@ -222,7 +228,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
 
       // Initial LSP message
-      setLSPMessage('Starting LSP flooding process...');
+      setMessage('Starting LSP flooding process...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Track all processed nodes for final routing table calculation
@@ -238,7 +244,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         
         // If no neighbors, skip this node
         if (nodeNeighbors.length === 0) {
-          setLSPMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
+          setMessage(`Node ${nodeId} has no neighbors to send LSPs to`);
           await new Promise(resolve => setTimeout(resolve, 1500));
           continue;
         }
@@ -264,7 +270,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         }
         
         // Start directly with flooding simulation
-        setLSPMessage(`Starting LSP flooding from Node ${nodeId}...`);
+        setMessage(`Starting LSP flooding from Node ${nodeId}...`);
         
         // Simulate the flooding with the initial packets
         const processedNodes = await simulateLSPFlooding(nodeId, initialPackets);
@@ -272,14 +278,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         // Add all processed nodes to the global set
         processedNodes.forEach(node => allProcessedNodes.add(node));
         
-        setLSPMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
+        setMessage(`LSP from Node ${nodeId} was flooded to ${processedNodes.size} nodes in the network`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         setCurrentNodeIndex(i + 1);
       }
       
       // Update routing tables for all affected nodes
-      setLSPMessage('Calculating final routing tables for all nodes...');
+      setMessage('Calculating final routing tables for all nodes...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Verify each node has a complete topology database
@@ -302,6 +308,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
               node.topologyDatabase.set(node.id, nodeLinks);
             }
             
+            // Log topology database before calculation
+            console.log(`Node ${nodeId} topology database:`, 
+              Array.from(node.topologyDatabase.entries())
+                .map(([sourceId, links]) => `${sourceId} -> ${Array.from(links.entries()).length} links`)
+                .join(', '));
+            
             // Calculate routing table
             node.calculateRoutingTable();
             
@@ -323,6 +335,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
               }
             }
             
+            // Log results of calculation
+            console.log(`Node ${nodeId} routing table calculated with ${node.routingTable.size} entries:`,
+              Array.from(node.routingTable.entries())
+                .map(([destId, route]) => `${destId} via ${route.nextHop} cost ${route.cost}`)
+                .join(', '));
+            
             // Count successful calculations
             routesCalculated += node.routingTable.size;
           } catch (error) {
@@ -332,7 +350,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
       
       // Final cleanup
-      setLSPMessage(`LSP flooding complete. ${routesCalculated} routes have been calculated across all nodes.`);
+      setMessage(`LSP flooding complete. ${routesCalculated} routes have been calculated across all nodes.`);
       
       // Force a check for routing tables
       const hasTablesNow = hasRoutingTables();
@@ -341,13 +359,12 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       
       // Update UI to show availability
       await new Promise(resolve => setTimeout(resolve, 2000));
-      setLSPMessage('');
+      setMessage('');
       
     } finally {
       setIsPerformingLSP(false);
       setCurrentNodeId(null);
       setCurrentNodeIndex(0);
-      setShowLSPPopup(false);
       
       // Force a redraw of the routing tables
       simulation.status.step += 1;
@@ -358,7 +375,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   // Helper function to simulate the LSP flooding process with visualizations
   const simulateLSPFlooding = async (sourceNodeId: number, initialPackets: Packet[]) => {
     // Track which nodes have processed each source node's LSP
-    // Map of sourceNodeId => Set of nodes that processed its LSP
     const processedLSPs = new Map<number, Set<number>>();
     processedLSPs.set(sourceNodeId, new Set([sourceNodeId]));
     
@@ -369,10 +385,25 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     let pendingPackets = [...initialPackets];
     let round = 1;
     
+    // Show LSP popup with initial information
+    setLSPInfo({
+      sourceNodeId,
+      round,
+      packetsCount: pendingPackets.length
+    });
+    setShowLSPPopup(true);
+    
     // Process packets until queue is empty
     while (pendingPackets.length > 0) {
-      setLSPRoundInfo(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
+      setMessage(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
       
+      // Update LSP info for the popup
+      setLSPInfo({
+        sourceNodeId,
+        round,
+        packetsCount: pendingPackets.length
+      });
+
       // Clear any existing packets
       network.packets = [];
       simulation.onSimulationStep();
@@ -380,48 +411,64 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       
       // Set the new packets and visualize them
       network.packets = pendingPackets;
-      simulation.onSimulationStep(); // Trigger simulation update
+      simulation.onSimulationStep();
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Collect new packets to be sent in the next round
       const nextRoundPackets: Packet[] = [];
       
-      // Process each packet in the current round
+      // Process each packet
       for (const packet of pendingPackets) {
         const targetNodeId = packet.to;
-        const targetNode = network.getNode(targetNodeId);
+        const sourceLSPNodeId = packet.data.nodeId; // The node that originated this LSP
         
+        // Skip processing for inactive nodes
+        const targetNode = network.getNode(targetNodeId);
         if (!targetNode || !targetNode.active) continue;
         
-        // Get or create the set of processed nodes for this source
-        let processedNodesForSource = processedLSPs.get(sourceNodeId);
-        if (!processedNodesForSource) {
-          processedNodesForSource = new Set();
-          processedLSPs.set(sourceNodeId, processedNodesForSource);
+        // Ensure we have a set for this source node
+        if (!processedLSPs.has(sourceLSPNodeId)) {
+          processedLSPs.set(sourceLSPNodeId, new Set());
         }
         
-        // Skip if this node already processed this source's LSP
-        if (processedNodesForSource.has(targetNodeId)) continue;
+        const processedNodesForSource = processedLSPs.get(sourceLSPNodeId)!;
+        
+        // Skip if this target node already processed this source's LSP
+        if (processedNodesForSource.has(targetNodeId)) {
+          continue;
+        }
         
         // Mark this node as having processed this source's LSP
         processedNodesForSource.add(targetNodeId);
         
-        // Update topology database
-        const sourceLSPNodeId = packet.data.nodeId;
-        let nodeLinks = targetNode.topologyDatabase.get(sourceLSPNodeId);
-        
-        if (!nodeLinks) {
-          nodeLinks = new Map<number, number>();
-          targetNode.topologyDatabase.set(sourceLSPNodeId, nodeLinks);
+        // Update the target node's topology database - create empty map if not exists
+        if (!targetNode.topologyDatabase.has(sourceLSPNodeId)) {
+          targetNode.topologyDatabase.set(sourceLSPNodeId, new Map());
         }
         
-        // Check if we need to update any links
+        const links = packet.data.links;
+        const nodeLinks = targetNode.topologyDatabase.get(sourceLSPNodeId)!;
         let updatedInfo = false;
-        for (const link of packet.data.links) {
-          if (!nodeLinks.has(link.nodeId) || nodeLinks.get(link.nodeId) !== link.cost) {
-            nodeLinks.set(link.nodeId, link.cost);
+        
+        // Update links in the topology database
+        for (const link of links) {
+          const linkNodeId = link.nodeId;
+          const linkCost = link.cost;
+          
+          // Only process links to active nodes
+          if (!network.getNode(linkNodeId)?.active) continue;
+          
+          // Update if link doesn't exist or cost changed
+          if (!nodeLinks.has(linkNodeId) || nodeLinks.get(linkNodeId) !== linkCost) {
+            nodeLinks.set(linkNodeId, linkCost);
             updatedInfo = true;
           }
+        }
+        
+        // Debugging - log updates
+        if (updatedInfo) {
+          console.log(`Node ${targetNodeId} updated topology for Node ${sourceLSPNodeId}, new links:`, 
+            Array.from(nodeLinks.entries()).map(([id, cost]) => `${id}:${cost}`).join(', '));
         }
         
         // Only flood to neighbors if this is new information
@@ -455,11 +502,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Safety check to prevent infinite loops
       if (round > 15 || nextRoundPackets.length === 0) {
         if (round > 15) {
-          setLSPMessage('LSP flooding terminated - maximum rounds reached');
+          setMessage('LSP flooding terminated - maximum rounds reached');
         }
         break;
       }
     }
+    
+    // Hide the LSP popup when done
+    setShowLSPPopup(false);
     
     // Return all nodes that processed LSPs from the source node
     return processedLSPs.get(sourceNodeId) || new Set();
@@ -896,112 +946,154 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
   };
 
   return (
-    <div className="control-group">
-      {/* Hello packets button */}
-      <div className="input-group">
+    <>
+      <div className="control-group">
+        <h2>Simulation Controls</h2>
+        
+        {/* Animation progress */}
+        {(isAnimating || isPerformingLSP) && (
+          <div className="animation-progress">
+            <div className="progress-bar">
+              <div className="progress-fill"></div>
+            </div>
+          </div>
+        )}
+        
+        {/* Animation message */}
+        {message && (
+          <div className="animation-message">
+            {message}
+          </div>
+        )}
+        
+        {/* Current node indicator */}
+        {currentNodeId !== null && (
+          <div className="current-node">
+            <div className="node-indicator">
+              <span className="node-dot"></span>
+              <span>Current Node: {currentNodeId}</span>
+            </div>
+            
+            {/* Node neighbors table */}
+            {showNeighborTable && (
+              <div className="node-neighbors-table-container">
+                <h3>Discovered Neighbors</h3>
+                {neighbors.length > 0 ? (
+                  <table className="node-neighbors-table">
+                    <thead>
+                      <tr>
+                        <th>Neighbor ID</th>
+                        <th>Link Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {neighbors.map(neighbor => (
+                        <tr key={neighbor.neighborId}>
+                          <td>Node {neighbor.neighborId}</td>
+                          <td>{neighbor.cost}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No neighbors discovered</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Neighbor table popup */}
+        <div className={`neighbor-table-popup ${showPopup ? 'show' : 'hide'}`}>
+          <h3>Neighbor Table</h3>
+          {currentNodeId && (
+            <div>
+              <p>Node {currentNodeId}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Neighbor ID</th>
+                    <th>Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {neighbors.map((neighbor) => (
+                    <tr key={neighbor.neighborId}>
+                      <td>{neighbor.neighborId}</td>
+                      <td>{neighbor.cost}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Controls */}
+      <div className="bottom-controls">
+        {/* Hello packets button */}
         <button 
           className="hello-button"
           onClick={handleSendHelloPackets}
           disabled={isAnimating || isPerformingLSP}
         >
-          {isAnimating ? 'Sending Hello...' : 'Send Hello Packets'}
+          {isAnimating ? 'Sending Hello Packets...' : 'Send Hello Packets'}
         </button>
-      </div>
 
-      {/* LSP flooding button */}
-      <div className="input-group">
+        {/* LSP flooding button */}
         <button 
           className="lsp-button"
           onClick={handlePerformLSPFlooding}
-          disabled={isAnimating || isPerformingLSP || !hasRunHelloPackets}
+          disabled={isAnimating || isPerformingLSP}
         >
-          {isPerformingLSP ? 'LSP Flooding...' : 'Start LSP Flooding'}
+          {isPerformingLSP ? 'Flooding...' : 'Start LSP Flooding'}
         </button>
-      </div>
 
-      {/* Button for showing neighbor tables */}
-      <div className="input-group">
+        {/* Button for showing neighbor tables */}
         <button 
-          className="toggle-button"
+          className="toggle-button "
           onClick={handleShowNeighborTables}
           disabled={!hasRunHelloPackets}
         >
-          Show Neighbors
+          Neighbor Tables
         </button>
-      </div>
 
-      {/* Toggle button for showing network topology */}
-      <div className="input-group">
+        {/* Toggle button for showing network topology */}
         <button 
           className="toggle-button"
           onClick={() => handleShowNetworkTopology()}
           disabled={!routingTablesAvailable}
         >
-          Show Topology
+          Network Topology
         </button>
-      </div>
 
-      {/* Toggle button for showing routing tables */}
-      <div className="input-group">
+        {/* Toggle button for showing routing tables */}
         <button 
           className={`toggle-button ${routingTablesAvailable ? 'routing-tables-ready' : ''}`}
           onClick={() => handleShowRoutingTables()}
           disabled={!routingTablesAvailable}
         >
-          Show Routes
+          Routing Tables
         </button>
       </div>
-      
-      {/* Animation message */}
-      {message && (
-        <div className="animation-message">
-          {message}
-        </div>
-      )}
-      
-      {/* Current node indicator */}
-      {currentNodeId !== null && (
-        <div className="current-node">
-          <div className="node-indicator">
-            <span className="node-dot"></span>
-            <span>Current: Node {currentNodeId}</span>
-          </div>
-        </div>
-      )}
 
-      {/* Neighbor table popup */}
-      <div className={`neighbor-table-popup ${showPopup ? 'show' : 'hide'}`}>
-        <h3>Neighbor Table</h3>
-        {currentNodeId && (
-          <div>
-            <p>Node {currentNodeId}</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>Neighbor ID</th>
-                  <th>Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {neighbors.map((neighbor) => (
-                  <tr key={neighbor.neighborId}>
-                    <td>{neighbor.neighborId}</td>
-                    <td>{neighbor.cost}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* LSP Flooding Popup */}
+      <div className={`lsp-flooding-popup ${showLSPPopup ? 'show' : 'hide'}`}>
+        <h3>LSP Flooding Progress</h3>
+        <div className="lsp-flooding-info">
+          <p>
+            Source Node: <span>Node {lspInfo.sourceNodeId}</span>
+          </p>
+          <p>
+            Round Number: <span>{lspInfo.round}</span>
+          </p>
+          <p>
+            Packets Being Sent: <span>{lspInfo.packetsCount}</span>
+          </p>
+        </div>
       </div>
-
-      {/* LSP message popup */}
-      <div className={`lsp-message-popup ${showLSPPopup ? 'show' : 'hide'}`}>
-        <h3>LSP Flooding Status</h3>
-        {lspRoundInfo && <div className="round-info">{lspRoundInfo}</div>}
-        {lspMessage && <div className="message-content">{lspMessage}</div>}
-      </div>
-    </div>
+    </>
   );
 };
 

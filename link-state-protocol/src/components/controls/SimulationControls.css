@@ -103,5 +103,79 @@
   justify-content: center;
 }
 
+/* LSP Flooding Popup */
+.lsp-flooding-popup {
+  position: fixed;
+  left: 60%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 2px solid #f44336;
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.lsp-flooding-popup h3 {
+  margin: 0 0 15px 0;
+  color: #f44336;
+  font-size: 1.2rem;
+  border-bottom: 1px solid rgba(244, 67, 54, 0.3);
+  padding-bottom: 10px;
+}
+
+.lsp-flooding-info {
+  margin: 15px 0;
+  padding: 10px;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+}
+
+.lsp-flooding-info p {
+  margin: 8px 0;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(244, 67, 54, 0.2);
+  padding-bottom: 8px;
+}
+
+.lsp-flooding-info p:last-child {
+  border-bottom: none;
+}
+
+.lsp-flooding-info span {
+  color: #ff7961;
+  font-weight: bold;
+}
+
+.lsp-flooding-popup.show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  animation: fadeIn 0.3s ease;
+}
+
+.lsp-flooding-popup.hide {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 /* Existing styles below */
 /* // ... existing code ...  */
