@@ -55,11 +55,14 @@ function App() {
     // Increment update counter to force re-render
     setUpdateCounter(counter => counter + 1);
     
-    // Update simulation state
+    // Update simulation state with empty packets array to prevent automatic animation
     setSimulationState(prevState => ({
       ...prevState,
-      packets: [...network.packets]
+      packets: [] // Clear packets when network structure changes
     }));
+    
+    // Clear any existing packets in the network
+    network.packets = [];
     
     console.log('Network updated, triggering re-render');
   }, [network]);

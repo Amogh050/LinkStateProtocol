@@ -27,6 +27,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
   const packetObjectsRef = useRef<Map<number, THREE.Object3D>>(new Map());
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef<number>(0);
+  const processedPacketsRef = useRef<Set<Packet>>(new Set());
   
   // Keep track of node and link counts to force re-renders
   const [nodeCount, setNodeCount] = useState(0);
@@ -256,8 +257,31 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({ network, pa
 
   // Update visualization when packets change
   useEffect(() => {
-    visualizePackets(packets);
+    if (packets.length > 0) {
+      // Filter out packets we've already processed to prevent duplicate animations
+      const newPackets = packets.filter(packet => !processedPacketsRef.current.has(packet));
+      
+      if (newPackets.length > 0) {
+        visualizePackets(newPackets);
+        
+        // Add these packets to our processed set
+        newPackets.forEach(packet => {
+          processedPacketsRef.current.add(packet);
+        });
+      }
+    }
   }, [packets]);
+
+  // Reset processed packets when component unmounts or remounts
+  useEffect(() => {
+    // Clear the set of processed packets on mount
+    processedPacketsRef.current.clear();
+    
+    return () => {
+      // Clear on unmount too
+      processedPacketsRef.current.clear();
+    };
+  }, []);
 
   const createNodeObject = (node: any) => {
     if (!sceneRef.current) return null;
