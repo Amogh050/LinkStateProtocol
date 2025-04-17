@@ -112,7 +112,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     // Reset the state
     setAllNodeNeighbors(new Map());
     setHasRunHelloPackets(false);
-    setShowPopup(true);
+    setShowPopup(false); // Initially hide popup
 
     // Get all active node IDs
     const nodeIds = getActiveNodeIds();
@@ -134,8 +134,11 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Send hello packets for the current node
       network.simulateNodeHelloPackets(nodeId);
       simulation.sendHelloPackets(nodeId);
+      
+      // Wait for the animation to complete
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Get and display node's neighbors
+      // Get and display node's neighbors AFTER animation completes
       const nodeNeighbors = network.getNodeNeighbors(nodeId);
       
       // Filter out any neighbors that no longer exist in the network
@@ -144,7 +147,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       );
       
       setNeighbors(filteredNeighbors);
-      // setShowNeighborTable(true);
       
       // Update the allNodeNeighbors map
       setAllNodeNeighbors(prev => {
@@ -153,17 +155,21 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         return newMap;
       });
       
+      // Show the result message
       if (filteredNeighbors.length > 0) {
         setMessage(`Node ${nodeId} discovered ${filteredNeighbors.length} neighbor${filteredNeighbors.length > 1 ? 's' : ''} with hello packets`);
       } else {
         setMessage(`Node ${nodeId} has no neighbors`);
       }
       
+      // Show the neighbor table AFTER the animation
+      setShowPopup(true);
+      
       // Wait for user to see the neighbor table
-      await new Promise(resolve => setTimeout(resolve, 1300));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Hide the neighbor table before moving to the next node
-      setShowNeighborTable(false);
+      setShowPopup(false);
       setCurrentNodeIndex(i + 1);
     }
     
@@ -176,7 +182,6 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     setCurrentNodeIndex(0);
     setHasRunHelloPackets(true); // Mark that hello packets have been run
     cleanupDeletedNodes(); // Make sure we clean up any deleted nodes
-    setShowPopup(false); // Hide the popup
   };
 
   const handlePerformLSPFlooding = async () => {
@@ -385,19 +390,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
     let pendingPackets = [...initialPackets];
     let round = 1;
     
-    // Show LSP popup with initial information
-    setLSPInfo({
-      sourceNodeId,
-      round,
-      packetsCount: pendingPackets.length
-    });
-    setShowLSPPopup(true);
+    // Initially hide the LSP popup
+    setShowLSPPopup(false);
     
     // Process packets until queue is empty
     while (pendingPackets.length > 0) {
       setMessage(`Round ${round}: Node ${sourceNodeId} flooding ${pendingPackets.length} LSP packets...`);
       
-      // Update LSP info for the popup
+      // Update LSP info for tracking
       setLSPInfo({
         sourceNodeId,
         round,
@@ -412,6 +412,14 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       // Set the new packets and visualize them
       network.packets = pendingPackets;
       simulation.onSimulationStep();
+      
+      // Wait for longer time to see animation complete
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Show the LSP popup AFTER the animation of this round
+      setShowLSPPopup(true);
+      
+      // Wait for the user to see the LSP info
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Collect new packets to be sent in the next round
@@ -495,6 +503,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
         }
       }
       
+      // Hide the LSP popup before moving to next round
+      setShowLSPPopup(false);
+      
       // Move to next round
       pendingPackets = nextRoundPackets;
       round++;
@@ -508,8 +519,19 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
       }
     }
     
-    // Hide the LSP popup when done
-    setShowLSPPopup(false);
+    // After all rounds are completed, show the final LSP info
+    if (processedLSPs.get(sourceNodeId)) {
+      const processedCount = processedLSPs.get(sourceNodeId)?.size || 0;
+      setLSPInfo({
+        sourceNodeId,
+        round: round - 1,
+        packetsCount: processedCount
+      });
+      
+      setShowLSPPopup(true);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setShowLSPPopup(false);
+    }
     
     // Return all nodes that processed LSPs from the source node
     return processedLSPs.get(sourceNodeId) || new Set();
@@ -1080,16 +1102,21 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({ simulation, net
 
       {/* LSP Flooding Popup */}
       <div className={`lsp-flooding-popup ${showLSPPopup ? 'show' : 'hide'}`}>
-        <h3>LSP Flooding Progress</h3>
+        <h3>LSP Flooding Status</h3>
         <div className="lsp-flooding-info">
           <p>
             Source Node: <span>Node {lspInfo.sourceNodeId}</span>
           </p>
           <p>
-            Round Number: <span>{lspInfo.round}</span>
+            Round: <span>{lspInfo.round}</span>
           </p>
           <p>
-            Packets Being Sent: <span>{lspInfo.packetsCount}</span>
+            Nodes Reached: <span>{lspInfo.packetsCount}</span>
+          </p>
+          <p className="lsp-status-message">
+            {lspInfo.round > 0 ? 
+              `Round ${lspInfo.round} completed: ${lspInfo.packetsCount} nodes have received LSP information.` : 
+              'Starting LSP flooding process...'}
           </p>
         </div>
       </div>

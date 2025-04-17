@@ -832,22 +832,25 @@ h3 {
   left: 60%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.9);
+  background-color: rgba(0, 0, 0, 0.95);
   border: 2px solid #4a90e2;
   border-radius: 8px;
   padding: 20px;
   color: white;
   min-width: 300px;
   max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(74, 144, 226, 0.5);
   z-index: 1000;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
 }
 
 .neighbor-table-popup h3 {
   margin: 0 0 15px 0;
   color: #4a90e2;
   font-size: 1.2rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(74, 144, 226, 0.5);
+  padding-bottom: 10px;
 }
 
 .neighbor-table-popup table {
@@ -858,7 +861,7 @@ h3 {
 
 .neighbor-table-popup th,
 .neighbor-table-popup td {
-  padding: 8px;
+  padding: 10px;
   text-align: left;
   border-bottom: 1px solid rgba(74, 144, 226, 0.3);
 }
@@ -866,20 +869,23 @@ h3 {
 .neighbor-table-popup th {
   color: #4a90e2;
   font-weight: bold;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 .neighbor-table-popup tr:hover {
-  background-color: rgba(74, 144, 226, 0.1);
+  background-color: rgba(74, 144, 226, 0.2);
 }
 
 .neighbor-table-popup.show {
   opacity: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(1);
+  visibility: visible;
 }
 
 .neighbor-table-popup.hide {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.8);
+  visibility: hidden;
 }
 
 /* Bottom Controls Container */
@@ -958,50 +964,65 @@ h3 {
   top: 50%;
   transform: translate(-50%, -50%);
   background-color: rgba(0, 0, 0, 0.95);
-  border: 2px solid #3682f4;
+  border: 2px solid #f44336;
   border-radius: 8px;
   padding: 20px;
   color: white;
   min-width: 350px;
   max-width: 450px;
-  box-shadow: 0 4px 12px rgba(54, 158, 244, 0.3);
+  box-shadow: 0 4px 20px rgba(244, 67, 54, 0.5);
   z-index: 1000;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
 }
 
 .lsp-flooding-popup h3 {
   margin: 0 0 15px 0;
-  color: #306df2;
+  color: #f44336;
   font-size: 1.3rem;
-  border-bottom: 1px solid rgba(54, 92, 244, 0.3);
+  text-align: center;
+  border-bottom: 1px solid rgba(244, 67, 54, 0.5);
   padding-bottom: 10px;
 }
 
 .lsp-flooding-info {
   margin: 15px 0;
-  padding: 10px;
-  background-color: rgba(57, 54, 244, 0.1);
-  border-radius: 4px;
+  padding: 15px;
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
 .lsp-flooding-info p {
-  margin: 8px 0;
+  margin: 10px 0;
   font-size: 1.1rem;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
 .lsp-flooding-info span {
-  color: #619eff;
+  color: #ff7961;
   font-weight: bold;
+}
+
+.lsp-status-message {
+  display: block !important;
+  text-align: center !important;
+  margin-top: 15px !important;
+  padding-top: 10px !important;
+  border-top: 1px dashed rgba(244, 67, 54, 0.3);
+  color: #ffffff !important;
+  font-style: italic;
 }
 
 .lsp-flooding-popup.show {
   opacity: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(1);
+  visibility: visible;
 }
 
 .lsp-flooding-popup.hide {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.8);
+  visibility: hidden;
 } 
